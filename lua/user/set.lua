@@ -1,4 +1,5 @@
 vim.g.mapleader = ","
+vim.opt.wrap = false
 vim.opt.colorcolumn = "80"
 vim.opt.termguicolors = true
 
