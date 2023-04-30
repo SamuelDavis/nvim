@@ -9,7 +9,7 @@ vim.keymap.set("v", "<leader>p", "\"_dP")
 vim.keymap.set("n", "<leader>Y", "\"+y")
 vim.keymap.set("v", "<leader>Y", "\"+y")
 -- paste from system keyboard
-vim.keymap.set("n", "<leader>P", "\"_d\"+p")
+vim.keymap.set("n", "<leader>P", "\"+p")
 vim.keymap.set("v", "<leader>P", "\"_d\"+p")
 
 --quick-open terminal
