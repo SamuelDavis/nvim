@@ -58,11 +58,22 @@ if not file_exists(plug_file) then
     .. "https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim")
 end
 
+local plugins = {
+    -- fuzzy-finder
+    ["junegunn/fzf"] = {["do"] = function () vim.call("fzf#install") end},
+    ["junegunn/fzf.vim"] = false,
+    -- syntax-highlighting
+    ["nvim-treesitter/nvim-treesitter"] = {["run"] = function () vim.cmd("TSUpdate") end},
+    -- undo diff
+    ["mbbill/undotree"] = false
+}
 vim.call("plug#begin", home_directory .. "/.config/nvim/plugged")
--- fuzzy-finder
-vim.fn["plug#"]("junegunn/fzf", {["do"] = function () vim.call("fzf#install") end})
-vim.fn["plug#"]("junegunn/fzf.vim")
--- syntax-highlighting
-vim.fn["plug#"]("nvim-treesitter/nvim-treesitter", {["run"] = function () vim.cmd("TSUpdate") end})
+for name, config in pairs(plugins) do
+    if config then
+        vim.fn["plug#"](name, config)
+    else
+        vim.fn["plug#"](name)
+    end
+end
 vim.call("plug#end")
 
