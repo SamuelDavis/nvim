@@ -56,7 +56,7 @@ for command, value in pairs(commands) do
     vim.cmd(command .. " " .. value)
 end
 
-local plug_file = home_directory .. "/nvim/site/autoload/plug.vim"
+local plug_file = home_directory .. "/.local/share/nvim/site/autoload/plug.vim"
 if not file_exists(plug_file) then
     os.execute(
         "curl -fLo " ..
@@ -100,6 +100,7 @@ for name, config in pairs(plugins) do
     end
 end
 vim.call("plug#end")
+vim.cmd("PlugUpdate")
 
 local lsp = require("lsp-zero").preset({})
 
