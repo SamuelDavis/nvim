@@ -36,7 +36,7 @@ local options = {
     undodir = undo_directory,
     -- search
     hlsearch = false,
-    incsearch = true
+    incsearch = true,
 }
 
 for option, value in pairs(options) do
@@ -45,7 +45,7 @@ end
 
 local commands = {
     colorscheme = "slate",
-    syntax = "on"
+    syntax = "on",
 }
 
 for command, value in pairs(commands) do
@@ -54,28 +54,35 @@ end
 
 local plug_file = home_directory .. "/nvim/site/autoload/plug.vim"
 if not file_exists(plug_file) then
-    os.execute("curl -fLo " .. plug_file .. " --create-dirs "
-    .. "https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim")
+    os.execute(
+    "curl -fLo " .. plug_file .. " --create-dirs " .. "https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim"
+    )
 end
 
 local plugins = {
     -- fuzzy-finder
-    ["junegunn/fzf"] = {["do"] = function () vim.call("fzf#install") end},
+    ["junegunn/fzf"] = { ["do"] = function()
+        vim.call("fzf#install")
+    end },
     ["junegunn/fzf.vim"] = false,
     -- syntax-highlighting
-    ["nvim-treesitter/nvim-treesitter"] = {["run"] = function () vim.cmd("TSUpdate") end},
+    ["nvim-treesitter/nvim-treesitter"] = { run = function()
+        vim.cmd("TSUpdate")
+    end },
     -- undo diff
     ["mbbill/undotree"] = false,
     -- LSP Support
     ["neovim/nvim-lspconfig"] = false,
-    ["williamboman/mason.nvim"] = {["do"] = function () vim.cmd("MasonUpdate") end},
+    ["williamboman/mason.nvim"] = { ["do"] = function()
+        vim.cmd("MasonUpdate")
+    end },
     ["williamboman/mason-lspconfig.nvim"] = false,
     -- Autocompletion
     ["hrsh7th/nvim-cmp"] = false,
     ["hrsh7th/cmp-nvim-lsp"] = false,
     ["L3MON4D3/LuaSnip"] = false,
     -- LSP
-    ["VonHeikemen/lsp-zero.nvim"] = {["branch"] = "v2.x"}
+    ["VonHeikemen/lsp-zero.nvim"] = { branch = "v2.x" },
 }
 vim.call("plug#begin", home_directory .. "/.config/nvim/plugged")
 for name, config in pairs(plugins) do
@@ -87,14 +94,27 @@ for name, config in pairs(plugins) do
 end
 vim.call("plug#end")
 
-local lsp = require('lsp-zero').preset({})
+local lsp = require("lsp-zero").preset({})
 
 lsp.on_attach(function(client, bufnr)
-  lsp.default_keymaps({buffer = bufnr})
+    lsp.default_keymaps({ buffer = bufnr })
 end)
 
 -- (Optional) Configure lua language server for neovim
-require('lspconfig').lua_ls.setup(lsp.nvim_lua_ls())
+require("lspconfig").lua_ls.setup(lsp.nvim_lua_ls())
 
 lsp.setup()
 
+local cmp = require("cmp")
+local cmp_action = require("lsp-zero").cmp_action()
+
+cmp.setup({
+    preselect = "item",
+    completion = { completeopt = "menu,menuone,noinsert" },
+    mapping = {
+        ["<Tab>"] = cmp_action.luasnip_supertab(),
+        ["<S-Tab>"] = cmp_action.luasnip_shift_supertab(),
+        ["<C-CR>"] = cmp.mapping.complete(),
+        ["<CR>"] = cmp.mapping.confirm(),
+    },
+})
