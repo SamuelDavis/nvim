@@ -54,6 +54,12 @@ for command, value in pairs(commands) do
     vim.cmd(command .. " " .. value)
 end
 
+local sets = { "autochdir" }
+
+for _, value in pairs(sets) do
+    vim.cmd("set " .. value)
+end
+
 local plug_file = home_directory .. "/.local/share/nvim/site/autoload/plug.vim"
 if not file_exists(plug_file) then
     os.execute(
