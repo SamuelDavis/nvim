@@ -42,6 +42,9 @@ for option, value in pairs(options) do
     vim.opt[option] = value
 end
 
+vim.api.nvim_set_hl(0, "Normal", { bg = "none" })
+vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none" })
+
 local commands = {
     colorscheme = "slate",
     syntax = "on",
@@ -148,9 +151,10 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end,
 })
 
-vim.g.prettier = {}
-vim.g.prettier.autoformat = 1
-vim.g.prettier.autoformat_require_pragma = 0
+vim.g.prettier = {
+    ["autoformat"] = 1,
+    ["autoformat_require_pragma"] = 0,
+}
 vim.cmd [[autocmd BufWritePre * :Prettier]]
 
 vim.g.mapleader = ","
