@@ -62,5 +62,7 @@ vim.call("plug#begin", home_directory .. "/.config/nvim/plugged")
 -- fuzzy-finder
 vim.fn["plug#"]("junegunn/fzf", {["do"] = function () vim.call("fzf#install") end})
 vim.fn["plug#"]("junegunn/fzf.vim")
+-- syntax-highlighting
+vim.fn["plug#"]("nvim-treesitter/nvim-treesitter", {["run"] = function () vim.cmd("TSUpdate") end})
 vim.call("plug#end")
 
