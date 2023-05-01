@@ -1,8 +1,3 @@
-vim.g.mapleader = ","
-vim.g.prettier = {}
-vim.g.prettier.autoformat = 1
-vim.g.prettier.autoformat_require_pragma = 0
-
 local home_directory = os.getenv("HOME")
 
 local function directory_exists(path)
@@ -66,10 +61,8 @@ end
 
 local plugins = {
     -- fuzzy-finder
-    ["junegunn/fzf"] = { ["do"] = function()
-        vim.call("fzf#install")
-    end },
-    ["junegunn/fzf.vim"] = false,
+    ["nvim-lua/plenary.nvim"] = false,
+    ["nvim-telescope/telescope.nvim"] = { ["tag"] = "0.1.1" },
     -- syntax-highlighting
     ["nvim-treesitter/nvim-treesitter"] = { run = function()
         vim.cmd("TSUpdate")
@@ -136,10 +129,10 @@ vim.api.nvim_create_autocmd("LspAttach", {
         -- Buffer local mappings.
         -- See `:help vim.lsp.*` for documentation on any of the below functions
         local opts = { buffer = ev.buf }
-        vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts)
-        vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
+        vim.keymap.set("n", "<leader>D", vim.lsp.buf.declaration, opts)
+        vim.keymap.set("n", "<leader>d", vim.lsp.buf.definition, opts)
+        vim.keymap.set("n", "<leader>r", vim.lsp.buf.references, opts)
         vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
-        vim.keymap.set("n", "gi", vim.lsp.buf.implementation, opts)
         vim.keymap.set("n", "<C-k>", vim.lsp.buf.signature_help, opts)
         vim.keymap.set("n", "<leader>wa", vim.lsp.buf.add_workspace_folder, opts)
         vim.keymap.set("n", "<leader>wr", vim.lsp.buf.remove_workspace_folder, opts)
@@ -149,12 +142,38 @@ vim.api.nvim_create_autocmd("LspAttach", {
         vim.keymap.set("n", "<leader>D", vim.lsp.buf.type_definition, opts)
         vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts)
         vim.keymap.set({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, opts)
-        vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
         vim.keymap.set("n", "<leader>f", function()
             vim.lsp.buf.format { async = true }
         end, opts)
     end,
 })
 
+vim.g.prettier = {}
+vim.g.prettier.autoformat = 1
+vim.g.prettier.autoformat_require_pragma = 0
 vim.cmd [[autocmd BufWritePre * :Prettier]]
+
+vim.g.mapleader = ","
+-- paste+replace without losing yanked value
+vim.keymap.set({"n", "v"}, "<leader>p", "\"_dP")
+-- yank to system clipboard
+vim.keymap.set({"n", "v"}, "<leader>Y", "\"+y")
+-- paste from system clipboard
+vim.keymap.set("n", "<leader>P", "\"+p")
+vim.keymap.set("v", "<leader>P", "\"_d\"+p")
+-- view project filetree
+vim.keymap.set("n", "<leader>pv", vim.cmd.Ex)
+local Telescope = require("telescope.builtin")
+-- fuzzy-find file
+vim.keymap.set("n", "<leader>ff", Telescope.find_files, {})
+-- fuzzy-find text (in buffers, {})
+vim.keymap.set("n", "<leader>fg", Telescope.live_grep, {})
+-- fuzzy-find file in git
+vim.keymap.set("n", "<leader>fp", Telescope.git_files, {})
+-- fuzzy-find symbol
+vim.keymap.set("n", "<leader>fs", Telescope.lsp_dynamic_workspace_symbols, {})
+-- find definitions
+vim.keymap.set("n", "<leader>fd", Telescope.lsp_definitions, {})
+-- find references
+vim.keymap.set("n", "<leader>fr", Telescope.lsp_references, {})
 
