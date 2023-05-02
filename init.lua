@@ -102,7 +102,6 @@ for name, config in pairs(plugins) do
     end
 end
 vim.call("plug#end")
-vim.cmd("PlugUpdate")
 
 local lsp = require("lsp-zero").preset({})
 
