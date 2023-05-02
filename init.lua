@@ -73,16 +73,16 @@ local plugins = {
     ["nvim-lua/plenary.nvim"] = false,
     ["nvim-telescope/telescope.nvim"] = { ["tag"] = "0.1.1" },
     -- syntax-highlighting
-    ["nvim-treesitter/nvim-treesitter"] = { run = function()
-        vim.cmd("TSUpdate")
-    end },
+    ["nvim-treesitter/nvim-treesitter"] = {
+        ["run"] = function() vim.cmd("TSUpdate") end,
+    },
     -- undo diff
     ["mbbill/undotree"] = false,
     -- LSP Support
     ["neovim/nvim-lspconfig"] = false,
-    ["williamboman/mason.nvim"] = { ["do"] = function()
-        vim.cmd("MasonUpdate")
-    end },
+    ["williamboman/mason.nvim"] = {
+        ["do"] = function() vim.cmd("MasonUpdate") end
+    },
     ["williamboman/mason-lspconfig.nvim"] = false,
     -- Autocompletion
     ["hrsh7th/nvim-cmp"] = false,
@@ -110,9 +110,8 @@ lsp.on_attach(function(client, bufnr)
     lsp.default_keymaps({ buffer = bufnr })
 end)
 
--- (Optional) Configure lua language server for neovim
-require("lspconfig").lua_ls.setup(lsp.nvim_lua_ls())
-
+local LSPConfig = require("lspconfig")
+LSPConfig.lua_ls.setup(lsp.nvim_lua_ls())
 lsp.setup()
 
 local cmp = require("cmp")
@@ -177,6 +176,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
         end, opts)
         vim.keymap.set("n", "<leader>D", vim.lsp.buf.type_definition, opts)
         vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts)
+        vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, opts)
         vim.keymap.set({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, opts)
         vim.keymap.set("n", "<leader>f", function()
             vim.lsp.buf.format { async = true }
