@@ -47,7 +47,7 @@ end
 local dmap = currymap("d", "[D]iagnostic")
 local fmap = currymap("f", "[F]ind")
 
-map("<Esc>", "<cmd>nohlsearch<CR>")
+vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
 vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 
 dmap("o", vim.diagnostic.open_float, "[O]pen Float")
@@ -291,6 +291,13 @@ require("lazy").setup({
 					},
 				},
 				bashls = {},
+				nil_ls = {},
+				intelephense = {
+					single_file_support = true,
+					init_options = {
+						licenceKey = os.getenv("HOME") .. "/.config/intelephense/licence.txt",
+					},
+				},
 			}
 			require("mason").setup()
 			local ensure_installed = vim.tbl_keys(servers or {})
