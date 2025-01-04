@@ -120,12 +120,12 @@ require("lazy").setup({
 			},
 			spec = {
 				{ "<leader>c", group = "[C]ode", mode = { "n", "x" } },
-				{ "<leader>d", group = "[D]ocument" },
-				{ "<leader>r", group = "[R]ename" },
-				{ "<leader>s", group = "[S]earch" },
-				{ "<leader>w", group = "[W]orkspace" },
+				{ "<leader>d", group = "[D]iagnostic" },
+				{ "<leader>f", group = "[F]ind" },
 				{ "<leader>t", group = "[T]oggle" },
-				{ "<leader>h", group = "Git [H]unk", mode = { "n", "v" } },
+				{ "<leader>r", group = "[R]ename" },
+				{ "<leader>c", group = "[C]ode" },
+				{ "<leader>h", "[H]over" },
 			},
 		},
 	},
@@ -298,6 +298,7 @@ require("lazy").setup({
 						licenceKey = os.getenv("HOME") .. "/.config/intelephense/licence.txt",
 					},
 				},
+				ts_ls = {},
 			}
 			require("mason").setup()
 			local ensure_installed = vim.tbl_keys(servers or {})
