@@ -68,6 +68,12 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
+	{
+		"dcampos/cmp-emmet-vim",
+		dependencies = { "mattn/emmet-vim" },
+	},
+	{ "windwp/nvim-autopairs", opts = {} },
+	{ "windwp/nvim-ts-autotag", opts = {} },
 	"tpope/vim-sleuth",
 	{
 		"lewis6991/gitsigns.nvim",
@@ -226,6 +232,7 @@ require("lazy").setup({
 
 					map("rn", vim.lsp.buf.rename, "[R]e[N]ame")
 					map("ca", vim.lsp.buf.code_action, "[C]ode [A]ction", {}, { "n", "x" })
+					map("cf", vim.lsp.buf.format, "[C]ode [F]ormat", {})
 					map("hd", vim.lsp.buf.hover, "[H]over [D]ocumentation")
 
 					local client = vim.lsp.get_client_by_id(event.data.client_id)
@@ -280,6 +287,7 @@ require("lazy").setup({
 					return root
 				end,
 			})
+			local home = os.getenv("HOME")
 			local servers = {
 				lua_ls = {
 					settings = {
@@ -295,7 +303,7 @@ require("lazy").setup({
 				intelephense = {
 					single_file_support = true,
 					init_options = {
-						licenceKey = os.getenv("HOME") .. "/.config/intelephense/licence.txt",
+						licenceKey = home .. "/.config/intelephense/licence.txt",
 					},
 				},
 				ts_ls = {},
@@ -304,6 +312,7 @@ require("lazy").setup({
 			local ensure_installed = vim.tbl_keys(servers or {})
 			vim.list_extend(ensure_installed, {
 				"stylua",
+				"prettierd",
 			})
 			require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 			--- @diagnostic disable-next-line: missing-fields
@@ -438,6 +447,7 @@ require("lazy").setup({
 					},
 					{ name = "nvim_lsp" },
 					{ name = "luasnip" },
+					{ name = "emmet_vim" },
 					{ name = "path" },
 				},
 			})
@@ -514,7 +524,7 @@ vim.api.nvim_create_autocmd({ "BufLeave", "VimLeave", "FocusLost" }, {
 	end,
 })
 
-vim.api.nvim_create_autocmd({ "VimEnter" }, {
+vim.api.nvim_create_autocmd({ "BufEnter" }, {
 	callback = function()
 		local file_dir = vim.fn.expand("%:p:h")
 		if vim.fn.isdirectory(file_dir) == 1 then
