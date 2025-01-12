@@ -226,7 +226,7 @@ require("lazy").setup({
 					fmap("r", builtin.lsp_references, "[R]eferences")
 					fmap("I", builtin.lsp_implementations, "[I]mplementations")
 					fmap("T", builtin.lsp_type_definitions, "[T]ype definitions")
-					fmap("s", builtin.lsp_workspace_symbols, "[S]ymbols (Workspace)")
+					fmap("s", builtin.lsp_dynamic_workspace_symbols, "[S]ymbols (Workspace)")
 					fmap("sd", builtin.lsp_document_symbols, "[S]ymbols ([D]ocument)")
 					fmap("D", vim.lsp.buf.declaration, "[D]eclaration")
 
