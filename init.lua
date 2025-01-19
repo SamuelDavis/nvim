@@ -24,6 +24,7 @@ vim.opt.listchars = { tab = "» ", trail = "·", nbsp = "␣" }
 vim.opt.inccommand = "split"
 vim.opt.cursorline = true
 vim.opt.scrolloff = 10
+vim.opt.colorcolumn = "80"
 
 -------------
 -- KEYMAPS --
@@ -68,13 +69,13 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
-	{
-		"dcampos/cmp-emmet-vim",
-		dependencies = { "mattn/emmet-vim" },
-	},
 	{ "windwp/nvim-autopairs", opts = {} },
 	{ "windwp/nvim-ts-autotag", opts = {} },
 	"tpope/vim-sleuth",
+	{
+		"okuuva/auto-save.nvim",
+		opts = {},
+	},
 	{
 		"lewis6991/gitsigns.nvim",
 		opts = {
@@ -189,7 +190,7 @@ require("lazy").setup({
 			fmap("k", builtin.keymaps, "[K]eymaps")
 			fmap("f", builtin.find_files, "[F]iles")
 			fmap("t", builtin.builtin, "[T]elescope")
-			fmap("g", builtin.grep_string, "[G]rep")
+			fmap("g", builtin.live_grep, "[G]rep")
 			fmap("c", builtin.resume, "[C]ontinue")
 			fmap("b", builtin.buffers, "[B]uffers")
 			fmap("o", builtin.oldfiles, "[O]ld Files")
@@ -281,11 +282,12 @@ require("lazy").setup({
 
 			lspconfig.gdscript.setup({
 				capabilities = capabilities,
-				root_dir = function()
-					local results = vim.fs.find({ "project.godot", ".git" }, { upward = true })
-					local root = vim.fs.dirname(results[1])
-					return root
-				end,
+				settings = {},
+				-- root_dir = function()
+				-- 	local results = vim.fs.find({ "project.godot", ".git" }, { upward = true })
+				-- 	local root = vim.fs.dirname(results[1])
+				-- 	return root
+				-- end,
 			})
 			local home = os.getenv("HOME")
 			local servers = {
@@ -307,6 +309,9 @@ require("lazy").setup({
 					},
 				},
 				ts_ls = {},
+				html = {},
+				cssls = {},
+				denols = {},
 			}
 			require("mason").setup()
 			local ensure_installed = vim.tbl_keys(servers or {})
@@ -399,7 +404,7 @@ require("lazy").setup({
 			local cmp = require("cmp")
 			local luasnip = require("luasnip")
 			luasnip.config.setup({})
-			luasnip.add_snippets("html", {
+			luasnip.add_snippets({ "html" }, {
 				luasnip.snippet("favicon", {
 					luasnip.text_node('<link rel="icon" href="data:;base64,iVBORw0KGgo=">'),
 				}),
@@ -444,11 +449,12 @@ require("lazy").setup({
 					{
 						name = "lazydev",
 						group_index = 0,
+						priority = 1,
 					},
-					{ name = "nvim_lsp" },
-					{ name = "luasnip" },
-					{ name = "emmet_vim" },
-					{ name = "path" },
+					{ name = "path", priority = 250 },
+					{ name = "buffer", priority = 500 },
+					{ name = "luasnip", priority = 750 },
+					{ name = "nvim_lsp", priority = 1000 },
 				},
 			})
 		end,
@@ -503,9 +509,13 @@ require("lazy").setup({
 				enable = true,
 				additional_vim_regex_highlighting = { "ruby" },
 			},
-			indent = { enable = true, disable = { "ruby" } },
+			indent = {
+				enable = true,
+				disable = { "ruby", "gdscript" },
+			},
 		},
 	},
+	{ "habamax/vim-godot", event = "VimEnter" },
 })
 
 vim.api.nvim_create_autocmd("TextYankPost", {
@@ -516,19 +526,11 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 	end,
 })
 
-vim.api.nvim_create_autocmd({ "BufLeave", "VimLeave", "FocusLost" }, {
-	callback = function()
-		if vim.bo.modified and not vim.bo.readonly then
-			vim.cmd("silent! write")
-		end
-	end,
-})
-
-vim.api.nvim_create_autocmd({ "BufEnter" }, {
-	callback = function()
-		local file_dir = vim.fn.expand("%:p:h")
-		if vim.fn.isdirectory(file_dir) == 1 then
-			vim.cmd("cd " .. file_dir)
-		end
-	end,
-})
+-- vim.api.nvim_create_autocmd({ "BufEnter" }, {
+-- 	callback = function()
+-- 		local file_dir = vim.fn.expand("%:p:h")
+-- 		if vim.fn.isdirectory(file_dir) == 1 then
+-- 			vim.cmd("cd " .. file_dir)
+-- 		end
+-- 	end,
+-- })
