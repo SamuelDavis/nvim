@@ -312,7 +312,6 @@ require("lazy").setup({
 				ts_ls = {},
 				html = {},
 				cssls = {},
-				denols = {},
 			}
 			require("mason").setup()
 			local ensure_installed = vim.tbl_keys(servers or {})
@@ -405,7 +404,7 @@ require("lazy").setup({
 			local cmp = require("cmp")
 			local luasnip = require("luasnip")
 			luasnip.config.setup({})
-			luasnip.add_snippets({ "html" }, {
+			luasnip.add_snippets("all", {
 				luasnip.snippet("favicon", {
 					luasnip.text_node('<link rel="icon" href="data:;base64,iVBORw0KGgo=">'),
 				}),
