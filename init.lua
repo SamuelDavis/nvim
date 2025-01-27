@@ -48,7 +48,6 @@ vim.opt.colorcolumn = "80"
 vim.opt.foldmethod = "expr"
 vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
 vim.opt.foldlevel = 9999
--- vim.cmd.colorscheme("slate")
 
 
 -------------
@@ -240,6 +239,21 @@ require("lazy").setup({
 			local mason = require("mason-lspconfig")
 			local capabilities = require("cmp_nvim_lsp").default_capabilities()
 
+			local acceptSelection = cmp.mapping(function(fallback)
+				if cmp.visible() then
+					local entry = cmp.get_selected_entry()
+					if not entry then
+						cmp.select_next_item({
+							behavior = cmp.SelectBehavior
+							    .Select
+						})
+					end
+					cmp.confirm()
+				else
+					fallback()
+				end
+			end, { "i", "s", "c", })
+
 			cmp.setup({
 				sources = cmp.config.sources({
 					{ name = "nvim_lsp" },
@@ -248,20 +262,8 @@ require("lazy").setup({
 					{ name = "cmdline" },
 				}),
 				mapping = {
-					["<Tab>"] = cmp.mapping(function(fallback)
-						if cmp.visible() then
-							local entry = cmp.get_selected_entry()
-							if not entry then
-								cmp.select_next_item({
-									behavior = cmp.SelectBehavior
-									    .Select
-								})
-							end
-							cmp.confirm()
-						else
-							fallback()
-						end
-					end, { "i", "s", "c", }),
+					["<Tab>"] = acceptSelection,
+					["<CR>"] = acceptSelection,
 				}
 			})
 
@@ -284,7 +286,6 @@ require("lazy").setup({
 						},
 					},
 				},
-				nil_ls = {},
 			}
 
 			local ensure_installed = vim.tbl_keys(servers or {})
@@ -293,7 +294,8 @@ require("lazy").setup({
 				handlers = {
 					function(name)
 						local server = servers[name] or {}
-						server.capabilities = vim.tbl_deep_extend("force", {}, capabilities,
+						server.capabilities = vim.tbl_deep_extend("force", capabilities,
+							vim.lsp.protocol.make_client_capabilities(),
 							server.capabilities or {})
 						server.root_dir = server.root_dir or find_root()
 						lsp[name].setup(server)
