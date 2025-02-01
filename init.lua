@@ -48,6 +48,7 @@ vim.opt.colorcolumn = "80"
 vim.opt.foldmethod = "expr"
 vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
 vim.opt.foldlevel = 9999
+vim.cmd.colorscheme("slate")
 
 
 -------------
@@ -254,6 +255,14 @@ require("lazy").setup({
 				end
 			end, { "i", "s", "c", })
 
+			cmp.setup.cmdline(":", {
+				mapping = cmp.mapping.preset.cmdline(),
+				sources = cmp.config.sources({
+					{ name = "path" },
+					{ name = "cmdline" },
+				}),
+			})
+
 			cmp.setup({
 				sources = cmp.config.sources({
 					{ name = "nvim_lsp" },
@@ -264,7 +273,7 @@ require("lazy").setup({
 				mapping = {
 					["<Tab>"] = acceptSelection,
 					["<CR>"] = acceptSelection,
-				}
+				},
 			})
 
 			local servers = {
