@@ -1,23 +1,3 @@
-local function find_root()
-	local path = vim.fn.expand("%:p:h")
-
-	local arg = vim.fn.argv(0)
-	if vim.fn.isdirectory(arg) then
-		path = arg
-	end
-
-	local search = vim.fs.find(
-		{ ".git", "package.json", "composer.json", "requirements.txt" },
-		{ upward = true, path = path }
-	)
-
-	if search[1] then
-		path = vim.fs.dirname(search[1])
-	end
-
-	return path
-end
-
 -------------
 -- OPTIONS --
 -------------
@@ -48,7 +28,9 @@ vim.opt.colorcolumn = "80"
 vim.opt.foldmethod = "expr"
 vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
 vim.opt.foldlevel = 9999
-vim.cmd.colorscheme("slate")
+vim.cmd.colorscheme("retrobox")
+vim.opt.tabstop = 4
+vim.opt.shiftwidth = 4
 
 
 -------------
@@ -100,38 +82,6 @@ require("lazy").setup({
 		"folke/which-key.nvim",
 		event = "VimEnter",
 		opts = {
-			icons = {
-				keys = {
-					Up = "<Up> ",
-					Down = "<Down> ",
-					Left = "<Left> ",
-					Right = "<Right> ",
-					C = "<C-…> ",
-					M = "<M-…> ",
-					D = "<D-…> ",
-					S = "<S-…> ",
-					CR = "<CR> ",
-					Esc = "<Esc> ",
-					ScrollWheelDown = "<ScrollWheelDown> ",
-					ScrollWheelUp = "<ScrollWheelUp> ",
-					NL = "<NL> ",
-					BS = "<BS> ",
-					Space = "<Space> ",
-					Tab = "<Tab> ",
-					F1 = "<F1>",
-					F2 = "<F2>",
-					F3 = "<F3>",
-					F4 = "<F4>",
-					F5 = "<F5>",
-					F6 = "<F6>",
-					F7 = "<F7>",
-					F8 = "<F8>",
-					F9 = "<F9>",
-					F10 = "<F10>",
-					F11 = "<F11>",
-					F12 = "<F12>",
-				},
-			},
 			spec = {
 				{ "<leader>c", group = "[C]ode",      mode = { "n", "x" } },
 				{ "<leader>d", group = "[D]iagnostic" },
@@ -139,7 +89,7 @@ require("lazy").setup({
 				{ "<leader>t", group = "[T]oggle" },
 				{ "<leader>r", group = "[R]ename" },
 				{ "<leader>c", group = "[C]ode" },
-				{ "<leader>h", "[H]over" },
+				{ "<leader>h", group = "[H]over" },
 			},
 		},
 	},
@@ -246,14 +196,14 @@ require("lazy").setup({
 					if not entry then
 						cmp.select_next_item({
 							behavior = cmp.SelectBehavior
-							    .Select
+								.Select
 						})
 					end
 					cmp.confirm()
 				else
 					fallback()
 				end
-			end, { "i", "s", "c", })
+			end, { "i", "s", })
 
 			cmp.setup.cmdline(":", {
 				mapping = cmp.mapping.preset.cmdline(),
@@ -287,6 +237,7 @@ require("lazy").setup({
 					},
 				},
 				intelephense = {},
+				phpactor = {},
 				biome = {
 					settings = {
 						biome = {
@@ -295,6 +246,7 @@ require("lazy").setup({
 						},
 					},
 				},
+				ts_ls = {},
 			}
 
 			local ensure_installed = vim.tbl_keys(servers or {})
@@ -306,7 +258,6 @@ require("lazy").setup({
 						server.capabilities = vim.tbl_deep_extend("force", capabilities,
 							vim.lsp.protocol.make_client_capabilities(),
 							server.capabilities or {})
-						server.root_dir = server.root_dir or find_root()
 						lsp[name].setup(server)
 					end,
 				},
@@ -331,59 +282,79 @@ require("lazy").setup({
 					map("hd", vim.lsp.buf.hover, "[H]over [D]ocumentation")
 
 					local client = vim.lsp.get_client_by_id(event.data.client_id)
-					if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight) then
-						local highlight_augroup =
-						    vim.api.nvim_create_augroup("lsp-highlight", { clear = false })
-						vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
-							buffer = event.buf,
-							group = highlight_augroup,
-							callback = vim.lsp.buf.document_highlight,
-						})
 
-						vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-							buffer = event.buf,
-							group = highlight_augroup,
-							callback = vim.lsp.buf.clear_references,
-						})
-
-						vim.api.nvim_create_autocmd("LspDetach", {
-							group = vim.api.nvim_create_augroup("lsp-detach",
-								{ clear = true }),
-							callback = function(event2)
-								vim.lsp.buf.clear_references()
-								vim.api.nvim_clear_autocmds({
-									group = "lsp-highlight",
-									buffer = event2.buf,
+					local optional_autocmds = {
+						{
+							vim.lsp.protocol.Methods.textDocument_documentHighlight,
+							function()
+								local highlight_augroup =
+									vim.api.nvim_create_augroup("lsp-highlight", { clear = false })
+								vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
+									buffer = event.buf,
+									group = highlight_augroup,
+									callback = vim.lsp.buf.document_highlight,
 								})
-							end,
-						})
-					end
 
-					if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint) then
-						map("th", function()
-							vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({
-								bufnr =
-								    event.buf
-							}))
-						end, "[T]oggle Inlay [H]ints")
-					end
+								vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+									buffer = event.buf,
+									group = highlight_augroup,
+									callback = vim.lsp.buf.clear_references,
+								})
 
-					if client and client.supports_method(vim.lsp.protocol.format) then
-						vim.api.nvim_create_autocmd("BufWritePre", {
-							group = vim.api.nvim_create_augroup("lsp-format",
-								{ clear = true }),
-							callback = function()
-								local pos = vim.api.nvim_win_get_cursor(0)
-								local success, err = pcall(vim.lsp.buf.format,
-									{ async = false })
-								if success then
-									vim.api.nvim_win_set_cursor(0, pos)
-								else
-									vim.notify("Formatter failed: " .. tostring(err),
-										vim.log.levels.ERROR)
-								end
-							end,
-						})
+								vim.api.nvim_create_autocmd("LspDetach", {
+									group = vim.api.nvim_create_augroup("lsp-detach",
+										{ clear = true }),
+									callback = function(event2)
+										vim.lsp.buf.clear_references()
+										vim.api.nvim_clear_autocmds({
+											group = "lsp-highlight",
+											buffer = event2.buf,
+										})
+									end,
+								})
+							end
+						},
+						{
+							vim.lsp.protocol.Methods.textDocument_inlayHint,
+							function()
+								map("th", function()
+									vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({
+										bufnr =
+											event.buf
+									}))
+								end, "[T]oggle Inlay [H]ints")
+							end
+						},
+						{
+							vim.lsp.protocol.format,
+							function()
+								vim.api.nvim_create_autocmd("BufWritePre", {
+									group = vim.api.nvim_create_augroup("lsp-format",
+										{ clear = true }),
+									callback = function()
+										local pos = vim.api.nvim_win_get_cursor(0)
+										local success, err = pcall(vim.lsp.buf.format,
+											{ async = false })
+										if success then
+											vim.api.nvim_win_set_cursor(0, pos)
+										else
+											vim.notify("Formatter failed: " .. tostring(err),
+												vim.log.levels.ERROR)
+										end
+									end,
+								})
+							end
+						},
+					}
+
+					if client then
+						for _, entry in pairs(optional_autocmds) do
+							local capability = entry[1]
+							local callback = entry[2]
+							if client.supports_method(capability) then
+								callback()
+							end
+						end
 					end
 				end,
 			})
@@ -398,7 +369,23 @@ vim.api.nvim_create_autocmd("VimEnter", {
 	desc = "Set CWD to opened file/folder",
 	group = vim.api.nvim_create_augroup("chdir-on-start", { clear = true }),
 	callback = function()
-		vim.cmd("cd " .. find_root())
+		local path = vim.fn.expand("%:p:h")
+
+		local arg = vim.fn.argv(0)
+		if vim.fn.isdirectory(arg) then
+			path = arg
+		end
+
+		local search = vim.fs.find(
+			{ ".git", "package.json", "composer.json", "requirements.txt" },
+			{ upward = true, path = path }
+		)
+
+		if search[1] then
+			path = vim.fs.dirname(search[1])
+		end
+
+		vim.cmd("cd " .. path)
 	end,
 })
 
