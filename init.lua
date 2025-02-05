@@ -1,3 +1,24 @@
+local function set_root_directory()
+	local path = vim.fn.expand("%:p:h")
+
+	local arg = vim.fn.argv(0)
+	if vim.fn.isdirectory(arg) then
+		path = arg
+	end
+
+	local search = vim.fs.find(
+		{ ".git", "package.json", "composer.json", "requirements.txt" },
+		{ upward = true, path = path }
+	)
+
+	if search[1] then
+		path = vim.fs.dirname(search[1])
+	end
+
+	vim.cmd("cd " .. path)
+end
+set_root_directory()
+
 -------------
 -- OPTIONS --
 -------------
@@ -258,6 +279,9 @@ require("lazy").setup({
 						server.capabilities = vim.tbl_deep_extend("force", capabilities,
 							vim.lsp.protocol.make_client_capabilities(),
 							server.capabilities or {})
+						server.root_dir = function()
+							return vim.fn.getcwd()
+						end
 						lsp[name].setup(server)
 					end,
 				},
@@ -365,30 +389,6 @@ require("lazy").setup({
 --------------
 -- AUTOCMDS --
 --------------
-vim.api.nvim_create_autocmd("VimEnter", {
-	desc = "Set CWD to opened file/folder",
-	group = vim.api.nvim_create_augroup("chdir-on-start", { clear = true }),
-	callback = function()
-		local path = vim.fn.expand("%:p:h")
-
-		local arg = vim.fn.argv(0)
-		if vim.fn.isdirectory(arg) then
-			path = arg
-		end
-
-		local search = vim.fs.find(
-			{ ".git", "package.json", "composer.json", "requirements.txt" },
-			{ upward = true, path = path }
-		)
-
-		if search[1] then
-			path = vim.fs.dirname(search[1])
-		end
-
-		vim.cmd("cd " .. path)
-	end,
-})
-
 local autosave_group = vim.api.nvim_create_augroup("autosave", { clear = true })
 vim.api.nvim_create_autocmd({ "FocusLost", "BufLeave" }, {
 	desc = "Autosave on focus lost",
