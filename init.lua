@@ -1,13 +1,27 @@
 local function set_root_directory()
-	local path = vim.fn.expand("%:p:h")
+	local path = vim.fn.argv(0) or vim.fn.expand("%:p:h")
+	local stat = vim.loop.fs_stat(path)
 
-	local arg = vim.fn.argv(0)
-	if vim.fn.isdirectory(arg) then
-		path = arg
+	if not stat then
+		path = vim.fs.dirname(path)
+		stat = vim.loop.fs_stat(path)
+	end
+
+	if stat then
+		if stat.type == "file" then
+			path = vim.fs.dirname(path)
+		elseif stat.type == "directory" then
+			path = path
+		end
+	end
+
+	stat = vim.loop.fs_stat(path)
+	if not stat or stat.type ~= 'directory' then
+		return vim.notify("'" .. path .. "' is not a valid path", vim.log.levels.warn)
 	end
 
 	local search = vim.fs.find(
-		{ ".git", "package.json", "composer.json", "requirements.txt" },
+		{ ".git", "package.json", "composer.json", "requirements.txt", "project.godot" },
 		{ upward = true, path = path }
 	)
 
@@ -258,7 +272,6 @@ require("lazy").setup({
 					},
 				},
 				intelephense = {},
-				phpactor = {},
 				biome = {
 					settings = {
 						biome = {
@@ -267,7 +280,6 @@ require("lazy").setup({
 						},
 					},
 				},
-				ts_ls = {},
 			}
 
 			local ensure_installed = vim.tbl_keys(servers or {})
@@ -286,6 +298,8 @@ require("lazy").setup({
 					end,
 				},
 			})
+
+			lsp.gdscript.setup({})
 
 			local group = vim.api.nvim_create_augroup("lsp-attach", { clear = true })
 			vim.api.nvim_create_autocmd("LspAttach", {
