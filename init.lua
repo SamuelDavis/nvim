@@ -220,6 +220,7 @@ require("lazy").setup({
 		},
 		config = function()
 			local cmp = require("cmp")
+			local autopairs = require('nvim-autopairs.completion.cmp')
 			local lsp = require("lspconfig")
 			local tools = require("mason-tool-installer")
 			local mason = require("mason-lspconfig")
@@ -258,6 +259,16 @@ require("lazy").setup({
 				mapping = {
 					["<Tab>"] = acceptSelection,
 					["<CR>"] = acceptSelection,
+					["<C-p>"] = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Select }),
+					["<C-n>"] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Select }),
+					['<C-b>'] = cmp.mapping.scroll_docs(-4),
+					['<C-f>'] = cmp.mapping.scroll_docs(4),
+				},
+				window = {
+					completion = cmp.config.window.bordered(),
+					documentation = cmp.config.window.bordered({
+						winhighlight = "Normal:Pmenu,FloatBorder:Pmenu,CursorLine:PmenuSel,Search:None",
+					}),
 				},
 			})
 
@@ -282,19 +293,21 @@ require("lazy").setup({
 				},
 			}
 
+			cmp.event:on("confirm_done", autopairs.on_confirm_done())
+
 			local ensure_installed = vim.tbl_keys(servers or {})
 			tools.setup({ ensure_installed = ensure_installed })
 			mason.setup({
 				handlers = {
 					function(name)
-						local server = servers[name] or {}
-						server.capabilities = vim.tbl_deep_extend("force", capabilities,
+						local config = servers[name] or {}
+						config.capabilities = vim.tbl_deep_extend("force", capabilities,
 							vim.lsp.protocol.make_client_capabilities(),
-							server.capabilities or {})
-						server.root_dir = function()
+							config.capabilities or {})
+						config.root_dir = function()
 							return vim.fn.getcwd()
 						end
-						lsp[name].setup(server)
+						lsp[name].setup(config)
 					end,
 				},
 			})
