@@ -254,7 +254,6 @@ require("lazy").setup({
 					{ name = "nvim_lsp" },
 					{ name = "buffer" },
 					{ name = "path" },
-					{ name = "cmdline" },
 				}),
 				mapping = {
 					["<Tab>"] = acceptSelection,
@@ -291,6 +290,7 @@ require("lazy").setup({
 						},
 					},
 				},
+				ts_ls = {},
 			}
 
 			cmp.event:on("confirm_done", autopairs.on_confirm_done())
