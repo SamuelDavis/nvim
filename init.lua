@@ -1,3 +1,19 @@
+---------------
+-- UTILITIES --
+---------------
+function vim.snippet.add(trigger, body, opts)
+	vim.keymap.set("ia", trigger, function()
+		-- If abbrev is expanded with keys like "(", ")", "<cr>", "<space>",
+		-- don't expand the snippet. Only accept "<c-]>" as trigger key.
+		local c = vim.fn.nr2char(vim.fn.getchar(0))
+		if c ~= "" then
+			vim.api.nvim_feedkeys(trigger .. c, "i", true)
+			return
+		end
+		vim.snippet.expand(body)
+	end, opts)
+end
+
 local function set_root_directory()
 	local path = vim.fn.argv(0) or vim.fn.expand("%:p:h")
 	local stat = vim.loop.fs_stat(path)
@@ -31,7 +47,12 @@ local function set_root_directory()
 
 	vim.cmd("cd " .. path)
 end
+
+----------
+-- INIT --
+----------
 set_root_directory()
+vim.snippet.add("favicon", '<link rel="icon" href="data:;base64,iVBORw0KGgo=">')
 
 -------------
 -- OPTIONS --
