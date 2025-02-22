@@ -408,7 +408,7 @@ require("lazy").setup({
 		config = function()
 			local conform = require("conform")
 			conform.formatters = vim.tbl_extend("force", conform.formatters, {
-				ensure_newlines = {
+				ensure_newline = {
 					format = function(_, _, lines, callback)
 						local out_lines = vim.deepcopy(lines)
 						while #out_lines > 0 and out_lines[#out_lines] == "" do
@@ -426,16 +426,16 @@ require("lazy").setup({
 					timeout_ms = 500,
 				},
 				formatters_by_ft = {
-					lua = { "stylua", "ensure_newlines" },
-					javascript = { "prettierd", "ensure_newlines" },
-					typescript = { "prettierd", "ensure_newlines" },
-					javascriptreact = { "prettierd", "ensure_newlines" },
-					typescriptreact = { "prettierd", "ensure_newlines" },
-					html = { "prettierd", "ensure_newlines" },
-					css = { "prettierd", "ensure_newlines" },
-					json = { "prettierd", "ensure_newlines" },
-					php = { "pint", "ensure_newlines" },
-					gdscript = { "gdformat", "ensure_newlines" },
+					lua = { "stylua" },
+					javascript = { "prettierd" },
+					typescript = { "prettierd" },
+					javascriptreact = { "prettierd" },
+					typescriptreact = { "prettierd" },
+					html = { "prettierd" },
+					css = { "prettierd" },
+					json = { "prettierd" },
+					php = { "pint" },
+					gdscript = { "gdformat" },
 				},
 			})
 			map("cc", conform.format, "[C]ode [C]onform")
