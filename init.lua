@@ -32,7 +32,7 @@ local function set_root_directory()
 	end
 
 	stat = vim.loop.fs_stat(path)
-	if not stat or stat.type ~= 'directory' then
+	if not stat or stat.type ~= "directory" then
 		return vim.notify("'" .. path .. "' is not a valid path", vim.log.levels.warn)
 	end
 
@@ -88,7 +88,6 @@ vim.cmd.colorscheme("retrobox")
 vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
 
-
 -------------
 -- KEYMAPS --
 -------------
@@ -139,7 +138,7 @@ require("lazy").setup({
 		event = "VimEnter",
 		opts = {
 			spec = {
-				{ "<leader>c", group = "[C]ode",      mode = { "n", "x" } },
+				{ "<leader>c", group = "[C]ode", mode = { "n", "x" } },
 				{ "<leader>d", group = "[D]iagnostic" },
 				{ "<leader>f", group = "[F]ind" },
 				{ "<leader>t", group = "[T]oggle" },
@@ -241,7 +240,7 @@ require("lazy").setup({
 		},
 		config = function()
 			local cmp = require("cmp")
-			local autopairs = require('nvim-autopairs.completion.cmp')
+			local autopairs = require("nvim-autopairs.completion.cmp")
 			local lsp = require("lspconfig")
 			local tools = require("mason-tool-installer")
 			local mason = require("mason-lspconfig")
@@ -252,15 +251,14 @@ require("lazy").setup({
 					local entry = cmp.get_selected_entry()
 					if not entry then
 						cmp.select_next_item({
-							behavior = cmp.SelectBehavior
-								.Select
+							behavior = cmp.SelectBehavior.Select,
 						})
 					end
 					cmp.confirm()
 				else
 					fallback()
 				end
-			end, { "i", "s", })
+			end, { "i", "s" })
 
 			cmp.setup.cmdline(":", {
 				mapping = cmp.mapping.preset.cmdline(),
@@ -281,8 +279,8 @@ require("lazy").setup({
 					["<CR>"] = acceptSelection,
 					["<C-p>"] = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Select }),
 					["<C-n>"] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Select }),
-					['<C-b>'] = cmp.mapping.scroll_docs(-4),
-					['<C-f>'] = cmp.mapping.scroll_docs(4),
+					["<C-b>"] = cmp.mapping.scroll_docs(-4),
+					["<C-f>"] = cmp.mapping.scroll_docs(4),
 				},
 				window = {
 					completion = cmp.config.window.bordered(),
@@ -303,28 +301,23 @@ require("lazy").setup({
 					},
 				},
 				intelephense = {},
-				biome = {
-					settings = {
-						biome = {
-							enableLinting = true,
-							enableFormatting = true,
-						},
-					},
-				},
 				ts_ls = {},
 			}
 
 			cmp.event:on("confirm_done", autopairs.on_confirm_done())
 
-			local ensure_installed = vim.tbl_keys(servers or {})
+			local ensure_installed = vim.list_extend(vim.tbl_keys(servers or {}), { "stylua", "prettierd", "pint" })
 			tools.setup({ ensure_installed = ensure_installed })
 			mason.setup({
 				handlers = {
 					function(name)
 						local config = servers[name] or {}
-						config.capabilities = vim.tbl_deep_extend("force", capabilities,
+						config.capabilities = vim.tbl_deep_extend(
+							"force",
+							capabilities,
 							vim.lsp.protocol.make_client_capabilities(),
-							config.capabilities or {})
+							config.capabilities or {}
+						)
 						config.root_dir = function()
 							return vim.fn.getcwd()
 						end
@@ -374,8 +367,7 @@ require("lazy").setup({
 								})
 
 								vim.api.nvim_create_autocmd("LspDetach", {
-									group = vim.api.nvim_create_augroup("lsp-detach",
-										{ clear = true }),
+									group = vim.api.nvim_create_augroup("lsp-detach", { clear = true }),
 									callback = function(event2)
 										vim.lsp.buf.clear_references()
 										vim.api.nvim_clear_autocmds({
@@ -384,38 +376,17 @@ require("lazy").setup({
 										})
 									end,
 								})
-							end
+							end,
 						},
 						{
 							vim.lsp.protocol.Methods.textDocument_inlayHint,
 							function()
 								map("th", function()
 									vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({
-										bufnr =
-											event.buf
+										bufnr = event.buf,
 									}))
 								end, "[T]oggle Inlay [H]ints")
-							end
-						},
-						{
-							vim.lsp.protocol.format,
-							function()
-								vim.api.nvim_create_autocmd("BufWritePre", {
-									group = vim.api.nvim_create_augroup("lsp-format",
-										{ clear = true }),
-									callback = function()
-										local pos = vim.api.nvim_win_get_cursor(0)
-										local success, err = pcall(vim.lsp.buf.format,
-											{ async = false })
-										if success then
-											vim.api.nvim_win_set_cursor(0, pos)
-										else
-											vim.notify("Formatter failed: " .. tostring(err),
-												vim.log.levels.ERROR)
-										end
-									end,
-								})
-							end
+							end,
 						},
 					}
 
@@ -430,7 +401,45 @@ require("lazy").setup({
 					end
 				end,
 			})
-		end
+		end,
+	},
+	{
+		"stevearc/conform.nvim",
+		config = function()
+			local conform = require("conform")
+			conform.formatters = vim.tbl_extend("force", conform.formatters, {
+				ensure_newlines = {
+					format = function(_, _, lines, callback)
+						local out_lines = vim.deepcopy(lines)
+						while #out_lines > 0 and out_lines[#out_lines] == "" do
+							table.remove(out_lines)
+						end
+						table.insert(out_lines, "")
+						callback(nil, out_lines)
+					end,
+				},
+			})
+
+			conform.setup({
+				lsp_format = "fallback",
+				format_on_save = {
+					timeout_ms = 500,
+				},
+				formatters_by_ft = {
+					lua = { "stylua", "ensure_newlines" },
+					javascript = { "prettierd", "ensure_newlines" },
+					typescript = { "prettierd", "ensure_newlines" },
+					javascriptreact = { "prettierd", "ensure_newlines" },
+					typescriptreact = { "prettierd", "ensure_newlines" },
+					html = { "prettierd", "ensure_newlines" },
+					css = { "prettierd", "ensure_newlines" },
+					json = { "prettierd", "ensure_newlines" },
+					php = { "pint", "ensure_newlines" },
+					gdscript = { "gdformat", "ensure_newlines" },
+				},
+			})
+			map("cc", conform.format, "[C]ode [C]onform")
+		end,
 	},
 })
 
@@ -441,9 +450,12 @@ local autosave_group = vim.api.nvim_create_augroup("autosave", { clear = true })
 vim.api.nvim_create_autocmd({ "FocusLost", "BufLeave" }, {
 	desc = "Autosave on focus lost",
 	group = autosave_group,
-	callback = function()
-		if vim.bo.modified then
-			vim.cmd("silent! write")
-		end
+	callback = function(event)
+		-- if vim.bo.modified then
+		-- 	require("conform").format({ bufnr = event.buf }, function()
+		-- 		vim.cmd("silent! write")
+		-- 	end)
+		-- end
 	end,
 })
+
