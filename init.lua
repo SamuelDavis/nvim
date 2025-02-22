@@ -451,11 +451,10 @@ vim.api.nvim_create_autocmd({ "FocusLost", "BufLeave" }, {
 	desc = "Autosave on focus lost",
 	group = autosave_group,
 	callback = function(event)
-		-- if vim.bo.modified then
-		-- 	require("conform").format({ bufnr = event.buf }, function()
-		-- 		vim.cmd("silent! write")
-		-- 	end)
-		-- end
+		if vim.bo.modified then
+			require("conform").format({ bufnr = event.buf }, function()
+				vim.cmd("silent! write")
+			end)
+		end
 	end,
 })
-
