@@ -112,6 +112,7 @@ local fmap = currymap("f", "[F]ind")
 
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
 vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
+vim.keymap.set("x", "<leader>r", ":<C-u>'<,'>s/\\%V", { desc = "Replace in Selection", silent = false })
 
 dmap("o", vim.diagnostic.open_float, "[O]pen Float")
 dmap("p", vim.diagnostic.get_prev, "[P]revious")
