@@ -302,7 +302,19 @@ require("lazy").setup({
 					},
 				},
 				intelephense = {},
+				biome = {},
 				ts_ls = {},
+				emmet_language_server = {
+					filetypes = {
+						"css",
+						"html",
+						"javascript",
+						"javascriptreact",
+						"typescript",
+						"typescriptreact",
+						"php",
+					},
+				},
 			}
 
 			cmp.event:on("confirm_done", autopairs.on_confirm_done())
