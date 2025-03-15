@@ -225,6 +225,11 @@ require("lazy").setup({
 				enable = true,
 				disable = { "ruby", "gdscript" },
 			},
+			ensure_installed = {
+				"javascript",
+				"typescript",
+				"tsx",
+			},
 		},
 	},
 	{
@@ -304,17 +309,7 @@ require("lazy").setup({
 				intelephense = {},
 				biome = {},
 				ts_ls = {},
-				emmet_language_server = {
-					filetypes = {
-						"css",
-						"html",
-						"javascript",
-						"javascriptreact",
-						"typescript",
-						"typescriptreact",
-						"php",
-					},
-				},
+				deno = {},
 			}
 
 			cmp.event:on("confirm_done", autopairs.on_confirm_done())
@@ -324,6 +319,15 @@ require("lazy").setup({
 			mason.setup({
 				handlers = {
 					function(name)
+						local is_deno = lsp.util.root_pattern("deno.json")(vim.fn.getcwd())
+
+						if name == "ts_ls" and is_deno then
+							return
+						end
+						if name == "denols" and not is_deno then
+							return
+						end
+
 						local config = servers[name] or {}
 						config.capabilities = vim.tbl_deep_extend(
 							"force",
@@ -471,3 +475,9 @@ vim.api.nvim_create_autocmd({ "FocusLost", "BufLeave" }, {
 		end
 	end,
 })
+
+vim.api.nvim_set_hl(0, "Normal", { bg = "NONE" })
+vim.api.nvim_set_hl(0, "NormalNC", { bg = "NONE" })
+vim.api.nvim_set_hl(0, "NonText", { bg = "NONE" })
+vim.api.nvim_set_hl(0, "LineNr", { bg = "NONE" }) -- Make line numbers transparent
+vim.api.nvim_set_hl(0, "SignColumn", { bg = "NONE" }) -- Remove sidebar background
