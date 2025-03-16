@@ -84,7 +84,7 @@ vim.opt.colorcolumn = "80"
 vim.opt.foldmethod = "expr"
 vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
 vim.opt.foldlevel = 9999
-vim.cmd.colorscheme("retrobox")
+-- vim.cmd.colorscheme("retrobox")
 vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
 
@@ -132,6 +132,15 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
+	{
+		"navarasu/onedark.nvim",
+		lazy = false,
+		priority = 1000,
+		config = function()
+			require("onedark").setup()
+			vim.cmd.colorscheme("onedark")
+		end,
+	},
 	{ "windwp/nvim-autopairs", opts = {} },
 	{ "tpope/vim-sleuth" },
 	{
