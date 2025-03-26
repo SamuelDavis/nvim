@@ -52,7 +52,6 @@ end
 -- INIT --
 ----------
 set_root_directory()
-vim.snippet.add("favicon", '<link rel="icon" href="data:;base64,iVBORw0KGgo=">')
 
 -------------
 -- OPTIONS --
@@ -249,6 +248,7 @@ require("lazy").setup({
 			"hrsh7th/cmp-buffer",
 			"hrsh7th/cmp-path",
 			"hrsh7th/cmp-cmdline",
+			{ "L3MON4D3/LuaSnip", version = "v2.*" },
 			{ "williamboman/mason.nvim", config = true },
 			"williamboman/mason-lspconfig.nvim",
 			"WhoIsSethDaniel/mason-tool-installer.nvim",
@@ -260,6 +260,13 @@ require("lazy").setup({
 			local tools = require("mason-tool-installer")
 			local mason = require("mason-lspconfig")
 			local capabilities = require("cmp_nvim_lsp").default_capabilities()
+			local snip = require("luasnip")
+
+			snip.add_snippets("html", {
+				snip.snippet("favicon", {
+					snip.text_node('<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=">'),
+				}),
+			})
 
 			local acceptSelection = cmp.mapping(function(fallback)
 				if cmp.visible() then
@@ -270,6 +277,8 @@ require("lazy").setup({
 						})
 					end
 					cmp.confirm()
+				elseif snip.expand_or_jumpable() then
+					snip.expand_or_jump()
 				else
 					fallback()
 				end
@@ -284,6 +293,11 @@ require("lazy").setup({
 			})
 
 			cmp.setup({
+				snippet = {
+					expand = function(args)
+						snip.lsp_expand(args.body)
+					end,
+				},
 				sources = cmp.config.sources({
 					{ name = "nvim_lsp" },
 					{ name = "buffer" },
@@ -319,6 +333,7 @@ require("lazy").setup({
 				biome = {},
 				ts_ls = {},
 				deno = {},
+				cssls = {},
 			}
 
 			cmp.event:on("confirm_done", autopairs.on_confirm_done())
