@@ -109,6 +109,8 @@ end
 local dmap = currymap("d", "[D]iagnostic")
 local fmap = currymap("f", "[F]ind")
 
+vim.keymap.set("n", "j", "gj", { noremap = true, silent = true })
+vim.keymap.set("n", "k", "gk", { noremap = true, silent = true })
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
 vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 vim.keymap.set("x", "<leader>r", ":<C-u>'<,'>s/\\%V", { desc = "Replace in Selection", silent = false })
@@ -334,6 +336,9 @@ require("lazy").setup({
 				ts_ls = {},
 				deno = {},
 				cssls = {},
+				harper_ls = {
+					filetypes = { "markdown" },
+				},
 			}
 
 			cmp.event:on("confirm_done", autopairs.on_confirm_done())
