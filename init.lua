@@ -1,18 +1,19 @@
+vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, { border = "shadow" })
 ---------------
 -- UTILITIES --
 ---------------
-function vim.snippet.add(trigger, body, opts)
-	vim.keymap.set("ia", trigger, function()
-		-- If abbrev is expanded with keys like "(", ")", "<cr>", "<space>",
-		-- don't expand the snippet. Only accept "<c-]>" as trigger key.
-		local c = vim.fn.nr2char(vim.fn.getchar(0))
-		if c ~= "" then
-			vim.api.nvim_feedkeys(trigger .. c, "i", true)
-			return
-		end
-		vim.snippet.expand(body)
-	end, opts)
-end
+-- local function vim.snippet.add(trigger, body, opts)
+-- 	vim.keymap.set("ia", trigger, function()
+-- 		-- If abbrev is expanded with keys like "(", ")", "<cr>", "<space>",
+-- 		-- don't expand the snippet. Only accept "<c-]>" as trigger key.
+-- 		local c = vim.fn.nr2char(vim.fn.getchar(0))
+-- 		if c ~= "" then
+-- 			vim.api.nvim_feedkeys(trigger .. c, "i", true)
+-- 			return
+-- 		end
+-- 		vim.snippet.expand(body)
+-- 	end, opts)
+-- end
 
 local function set_root_directory()
 	local path = vim.fn.argv(0) or vim.fn.expand("%:p:h")
@@ -83,7 +84,7 @@ vim.opt.colorcolumn = "80"
 vim.opt.foldmethod = "expr"
 vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
 vim.opt.foldlevel = 9999
--- vim.cmd.colorscheme("retrobox")
+vim.cmd.colorscheme("slate")
 vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
 
@@ -133,15 +134,15 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
-	{
-		"navarasu/onedark.nvim",
-		lazy = false,
-		priority = 1000,
-		config = function()
-			require("onedark").setup()
-			vim.cmd.colorscheme("onedark")
-		end,
-	},
+	-- {
+	-- 	"navarasu/onedark.nvim",
+	-- 	lazy = false,
+	-- 	priority = 1000,
+	-- 	config = function()
+	-- 		require("onedark").setup()
+	-- 		vim.cmd.colorscheme("onedark")
+	-- 	end,
+	-- },
 	{ "windwp/nvim-autopairs", opts = {} },
 	{ "tpope/vim-sleuth" },
 	{
@@ -336,14 +337,17 @@ require("lazy").setup({
 				ts_ls = {},
 				deno = {},
 				cssls = {},
+				pyright = {},
 				harper_ls = {
 					filetypes = { "markdown" },
 				},
 			}
 
+			local formatters = { "stylua", "prettierd", "pint", "isort", "black" }
+
 			cmp.event:on("confirm_done", autopairs.on_confirm_done())
 
-			local ensure_installed = vim.list_extend(vim.tbl_keys(servers or {}), { "stylua", "prettierd", "pint" })
+			local ensure_installed = vim.list_extend(vim.tbl_keys(servers or {}), formatters)
 			tools.setup({ ensure_installed = ensure_installed })
 			mason.setup({
 				handlers = {
@@ -482,6 +486,7 @@ require("lazy").setup({
 					json = { "prettierd" },
 					php = { "pint" },
 					gdscript = { "gdformat" },
+					python = { "isort", "black" },
 				},
 			})
 			map("cc", conform.format, "[C]ode [C]onform")
