@@ -115,15 +115,17 @@ local servers = {
 	"typescript-language-server",
 	"intelephense",
 	"emmet-ls",
+	"bashls",
 }
-
+local _servers = {}
 for k, v in pairs(servers) do
 	if type(k) == "number" then
-		servers[v] = {}
-		servers[k] = nil
+		_servers[v] = {}
+	else
+		_servers[k] = v
 	end
 end
-
+servers = _servers
 local servers_to_enable = vim.tbl_deep_extend("force", {
 	gdscript = {}, -- gdscript is installed by Godot, not Mason
 }, servers)
