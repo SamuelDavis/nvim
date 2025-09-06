@@ -134,15 +134,15 @@ local lsps = vim.tbl_keys(servers)
 local lspconfig_ignore = { "typescript-language-server", "emmet-ls" }
 local ensure_installed = vim.iter({ lsps, lspconfig_ignore }):flatten():totable()
 local file_ignore_patterns = vim.iter({
-	--misc
-	{ "%.ttf" },
-	-- audio
-	{ "%.mp3", "%.wav" },
-	-- images
-	{ "%.png", "%.swf", "%.svg" },
-	-- godot
-	{ "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" },
-})
+		--misc
+		{ "%.ttf" },
+		-- audio
+		{ "%.mp3", "%.wav" },
+		-- images
+		{ "%.png", "%.swf",    "%.svg" },
+		-- godot
+		{ "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" },
+	})
 	:flatten()
 	:totable()
 
@@ -251,7 +251,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 			for _, entry in pairs(optional_autocmds) do
 				local capability = entry[1]
 				local callback = entry[2]
-				if client.supports_method(capability) then
+				if client:supports_method(capability) then
 					callback()
 				end
 			end
@@ -297,7 +297,7 @@ require("lazy").setup({
 	{
 		"neovim/nvim-lspconfig",
 		dependencies = {
-			{ "mason-org/mason.nvim", opts = {} },
+			{ "mason-org/mason.nvim",           opts = {} },
 			{ "mason-org/mason-lspconfig.nvim", opts = {} },
 			{
 				"WhoIsSethDaniel/mason-tool-installer.nvim",
