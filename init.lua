@@ -132,24 +132,26 @@ local servers_to_enable = vim.tbl_deep_extend("force", {
 
 local lsps = vim.tbl_keys(servers)
 local lspconfig_ignore = { "typescript-language-server", "emmet-ls" }
-local ensure_installed = {}
-vim.list_extend(ensure_installed, lsps)
-vim.list_extend(ensure_installed, formatters)
-
-local ignore_images = { "%.png", "%.swf", "%.svg" }
-local ignore_godot = { "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" }
-local file_ignore_patterns = {}
-vim.list_extend(file_ignore_patterns, ignore_images)
-vim.list_extend(file_ignore_patterns, ignore_godot)
+local ensure_installed = vim.iter({ lsps, lspconfig_ignore }):flatten():totable()
+local file_ignore_patterns = vim.iter({
+	--misc
+	{ "%.ttf" },
+	-- audio
+	{ "%.mp3", "%.wav" },
+	-- images
+	{ "%.png", "%.swf", "%.svg" },
+	-- godot
+	{ "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" },
+})
+	:flatten()
+	:totable()
 
 local function config_telescope()
 	local telescope = require("telescope")
 	local builtin = require("telescope.builtin")
 	local config = require("telescope.config")
 
-	config.set_defaults({
-		file_ignore_patterns = file_ignore_patterns,
-	})
+	config.set_defaults({ file_ignore_patterns = file_ignore_patterns })
 
 	pcall(telescope.load_extension, "fzf")
 	pcall(telescope.load_extension, "ui-select")
