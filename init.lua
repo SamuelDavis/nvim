@@ -37,8 +37,9 @@ vim.opt.colorcolumn = "80"
 -- preview commands
 vim.opt.inccommand = "split"
 -- code folds
-vim.opt.foldmethod = "expr"
-vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
+vim.opt.foldenable = true
+vim.opt.foldmethod = "indent"
+vim.opt.foldexpr = nil
 vim.opt.foldlevel = 9999
 -- indentation
 vim.opt.tabstop = 4
@@ -48,7 +49,7 @@ vim.o.mouse = "a"
 -- search
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
-vim.cmd.colorscheme("slate")
+vim.cmd.colorscheme("retrobox")
 -- prompt before clobbering buffer
 vim.o.confirm = true
 -- clipboard
@@ -318,6 +319,8 @@ require("lazy").setup({
 			formatters_by_ft = {
 				lua = { "stylua" },
 				python = { "isort", "black" },
+				html = { "prettierd", "prettier", stop_after_first = true },
+				json = { "prettierd", "prettier", stop_after_first = true },
 				javascript = { "prettierd", "prettier", stop_after_first = true },
 				typescript = { "prettierd", "prettier", stop_after_first = true },
 				javascriptreact = { "prettierd", "prettier", stop_after_first = true },
@@ -384,19 +387,35 @@ vim.api.nvim_create_autocmd({ "BufWritePre", "FocusLost", "BufLeave" }, {
 	desc = "Format on save",
 	pattern = "*",
 	group = vim.api.nvim_create_augroup("Autoformat", { clear = true }),
-	callback = function(args)
+	callback = function(ev)
 		if
-			vim.api.nvim_buf_is_valid(args.buf)
-			and vim.bo[args.buf].buftype == ""
-			and vim.bo[args.buf].modified
-			and not vim.bo[args.buf].readonly
+			vim.api.nvim_buf_is_valid(ev.buf)
+			and vim.bo[ev.buf].buftype == ""
+			and vim.bo[ev.buf].modified
+			and not vim.bo[ev.buf].readonly
 		then
 			require("conform").format({
-				buf = args.buf,
+				buf = ev.buf,
 				lsp_format = "fallback",
 			}, function()
 				vim.cmd("silent! write")
 			end)
+		end
+	end,
+})
+
+vim.api.nvim_create_autocmd({ "BufReadPost" }, {
+	desc = "Fix Code Folding",
+	pattern = "*",
+	group = vim.api.nvim_create_augroup("Set Buffer Options", { clear = true }),
+	callback = function(ev)
+		local filetype = vim.bo[ev.buf].filetype
+		if filetype == "python" then
+			vim.opt.foldmethod = "indent"
+			vim.opt.foldexpr = nil
+		else
+			vim.opt.foldmethod = "expr"
+			vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
 		end
 	end,
 })
