@@ -135,15 +135,15 @@ local lsps = vim.tbl_keys(servers)
 local lspconfig_ignore = { "typescript-language-server", "emmet-ls" }
 local ensure_installed = vim.iter({ lsps, lspconfig_ignore }):flatten():totable()
 local file_ignore_patterns = vim.iter({
-		--misc
-		{ "%.ttf" },
-		-- audio
-		{ "%.mp3", "%.wav" },
-		-- images
-		{ "%.png", "%.swf",    "%.svg" },
-		-- godot
-		{ "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" },
-	})
+	--misc
+	{ "%.ttf" },
+	-- audio
+	{ "%.mp3", "%.wav" },
+	-- images
+	{ "%.png", "%.swf", "%.svg" },
+	-- godot
+	{ "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" },
+})
 	:flatten()
 	:totable()
 
@@ -271,7 +271,7 @@ end
 local rtp = vim.opt.rtp
 rtp:prepend(lazypath)
 require("lazy").setup({
-	"NMAC427/guess-indent.nvim",
+	{ "NMAC427/guess-indent.nvim", opts = {} },
 	{
 		"folke/which-key.nvim",
 		event = "VimEnter",
@@ -298,7 +298,7 @@ require("lazy").setup({
 	{
 		"neovim/nvim-lspconfig",
 		dependencies = {
-			{ "mason-org/mason.nvim",           opts = {} },
+			{ "mason-org/mason.nvim", opts = {} },
 			{ "mason-org/mason-lspconfig.nvim", opts = {} },
 			{
 				"WhoIsSethDaniel/mason-tool-installer.nvim",
