@@ -28,7 +28,7 @@ vim.opt.updatetime = 150
 vim.opt.timeoutlen = 300
 -- clarify whitespace
 vim.opt.list = true
-vim.opt.listchars = { tab = "» ", trail = "·", nbsp = "␣" }
+vim.opt.listchars = { tab = "| ", trail = "·", nbsp = "␣" }
 vim.opt.breakindent = true
 -- cursor positioning
 vim.opt.signcolumn = "yes"
@@ -62,9 +62,12 @@ for _, ch in ipairs(undopoints) do
 	vim.keymap.set("i", ch, ch .. "<C-g>u", { noremap = true })
 end
 
-------------
--- KEYMAP --
-------------
+-------------
+-- KEYMAPS --
+-------------
+vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
+vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
+
 local function map(key, fn, desc, mode)
 	vim.keymap.set(mode or "n", "<leader>" .. key, fn, { desc = desc })
 end
@@ -85,23 +88,25 @@ end
 local dmap = keymap_prefix("d", "[D]iagnostic")
 local fmap = keymap_prefix("f", "[F]ind")
 local rmap = keymap_prefix("r", "[R]eplace")
+local cmap = keymap_prefix("c", "[C]ode")
 
 dmap("o", vim.diagnostic.open_float, "[O]pen")
-dmap("p", vim.diagnostic.open_float, "[P]rev")
-dmap("n", vim.diagnostic.open_float, "[N]ext")
-dmap("c", vim.diagnostic.open_float, "[C]ode")
+dmap("p", vim.diagnostic.get_prev, "[P]rev")
+dmap("n", vim.diagnostic.get_next, "[N]ext")
+dmap("l", vim.diagnostic.setloclist, "[L]ist")
 
-vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
-vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 rmap("s", ":s/\\%V", "[S]election", "v")
 rmap("l", ":s/", "[L]ine", "v")
+
+cmap("f", function()
+	require("conform").format({ async = true, lsp_format = "fallback" })
+end, "[F]ormat")
 
 -------------
 -- PLUGINS --
 -------------
-
-local formatters = { "stylua", "isort", "black", "prettierd", "prettier", "pretty-php", "duster", "gdtoolkit" }
 local servers = {
+	-- servers
 	lua_ls = {
 		settings = {
 			Lua = {
@@ -112,11 +117,34 @@ local servers = {
 			},
 		},
 	},
+	denols = {
+		root_dir = function(bufnr, on_dir)
+			local root = vim.fs.root(bufnr, { "deno.json", "deno.jsonc" })
+			if root then
+				on_dir(root)
+			end
+		end,
+	},
+	ts_ls = {
+		root_dir = function(bufnr, on_dir)
+			local is_deno = vim.fs.root(bufnr, { "deno.json", "deno.jsonc" })
+			if is_deno then
+				return
+			end
+			local root = vim.fs.root(bufnr, { "package.json" }) or vim.fn.getcwd()
+			on_dir(root)
+		end,
+	},
 	"pyright",
-	"typescript-language-server",
 	"intelephense",
-	"emmet-ls",
 	"bashls",
+	-- formatters
+	"stylua",
+	"prettierd",
+	"isort",
+	"black",
+	"pretty-php",
+	"gdtoolkit",
 }
 local _servers = {}
 for k, v in pairs(servers) do
@@ -127,36 +155,37 @@ for k, v in pairs(servers) do
 	end
 end
 servers = _servers
-local servers_to_enable = vim.tbl_deep_extend("force", {
-	gdscript = {}, -- gdscript is installed by Godot, not Mason
-}, servers)
+local formatters = {}
+local ensure_installed = vim.iter({ vim.tbl_keys(servers), formatters }):flatten():totable()
 
-local lsps = vim.tbl_keys(servers)
-local lspconfig_ignore = { "typescript-language-server", "emmet-ls" }
-local ensure_installed = vim.iter({ lsps, lspconfig_ignore }):flatten():totable()
-local file_ignore_patterns = vim.iter({
-	--misc
-	{ "%.ttf" },
-	-- audio
-	{ "%.mp3", "%.wav" },
-	-- images
-	{ "%.png", "%.swf", "%.svg" },
-	-- godot
-	{ "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" },
-})
-	:flatten()
-	:totable()
-
-local function config_telescope()
+function config_telescope()
 	local telescope = require("telescope")
-	local builtin = require("telescope.builtin")
-	local config = require("telescope.config")
 
-	config.set_defaults({ file_ignore_patterns = file_ignore_patterns })
+	local file_ignore_patterns = vim.iter({
+		--misc
+		{ "%.ttf" },
+		-- audio
+		{ "%.mp3", "%.wav" },
+		-- images
+		{ "%.png", "%.swf", "%.svg" },
+		-- godot
+		{ "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" },
+		-- vendor
+		{ "node_modules", "vendor" },
+	})
+		:flatten()
+		:totable()
+
+	telescope.setup({
+		defaults = {
+			file_ignore_patterns = file_ignore_patterns,
+		},
+	})
 
 	pcall(telescope.load_extension, "fzf")
 	pcall(telescope.load_extension, "ui-select")
 
+	local builtin = require("telescope.builtin")
 	dmap("l", builtin.diagnostics, "[L]ist")
 	fmap("f", builtin.find_files, "[F]iles")
 	fmap("b", builtin.buffers, "[B]uffers")
@@ -166,25 +195,185 @@ local function config_telescope()
 	fmap(".", builtin.current_buffer_fuzzy_find, "[.] Here")
 end
 
-local function config_lspconfig()
-	local lspconfig = require("lspconfig")
+function config_lspconfig()
 	local blink = require("blink.cmp")
 	local capabilities = blink.get_lsp_capabilities()
-	for name, server in pairs(servers_to_enable) do
+	for name, server in pairs(servers) do
 		server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-		server.on_attach = function(client)
-			local path = client.config.root_dir
-			if vim.fn.isdirectory(path) == 1 then
-				vim.cmd.cd(path)
-			end
-		end
 		vim.lsp.config(name, server)
 		vim.lsp.enable(name)
-		if not vim.tbl_contains(lspconfig_ignore, name) then
-			lspconfig[name].setup(server)
-		end
 	end
 end
+
+function config_luasnip()
+	print("hello")
+	local snip = require("luasnip")
+
+	snip.add_snippets("html", {
+		snip.snippet("favicon", {
+			snip.text_node('<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=">'),
+		}),
+	})
+end
+
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not (vim.uv or vim.loop).fs_stat(lazypath) then
+	local lazyrepo = "https://github.com/folke/lazy.nvim.git"
+	local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
+	if vim.v.shell_error ~= 0 then
+		error("Error cloning lazy.nvim:\n" .. out)
+	end
+end
+local rtp = vim.opt.rtp
+rtp:prepend(lazypath)
+require("lazy").setup({
+	{ "NMAC427/guess-indent.nvim", opts = {} },
+	{ "windwp/nvim-autopairs", opts = {} },
+	{ "folke/which-key.nvim", opts = {} },
+	{
+		"nvim-telescope/telescope.nvim",
+		dependencies = {
+			{ "nvim-lua/plenary.nvim" },
+			{ "nvim-telescope/telescope-ui-select.nvim" },
+			{
+				"nvim-telescope/telescope-fzf-native.nvim",
+				build = "make",
+				cond = function()
+					return vim.fn.executable("make") == 1
+				end,
+			},
+		},
+		opts = {},
+		config = config_telescope,
+	},
+	{
+		"neovim/nvim-lspconfig",
+		dependencies = {
+			{ "mason-org/mason.nvim", opts = {} },
+			{ "mason-org/mason-lspconfig.nvim", opts = {} },
+			{
+				"WhoIsSethDaniel/mason-tool-installer.nvim",
+				opts = { ensure_installed = ensure_installed },
+			},
+			{ "j-hui/fidget.nvim", opts = {} },
+			{ "saghen/blink.cmp", opts = {} },
+		},
+		opts = {},
+		config = config_lspconfig,
+	},
+	{
+		"saghen/blink.cmp",
+		opts = {
+			keymap = {
+				preset = "super-tab",
+				["<CR>"] = { "accept", "fallback" },
+			},
+			completion = {
+				documentation = { auto_show = true, auto_show_delay_ms = 250 },
+				menu = {
+					draw = {
+						components = {
+							kind_icon = {
+								text = function(ctx)
+									return ctx.kind
+								end,
+							},
+						},
+					},
+				},
+			},
+			fuzzy = {
+				implementation = "lua",
+				sorts = { "sort_text", "score", "label" },
+			},
+			signature = { enabled = true },
+		},
+	},
+	{
+		"nvim-treesitter/nvim-treesitter",
+		build = ":TSUpdate",
+		main = "nvim-treesitter.configs",
+		opts = {
+			auto_install = true,
+			highlight = { enable = true },
+			indent = { enable = true, disable = { "gdscript" } },
+		},
+	},
+	{
+		"stevearc/conform.nvim",
+		opts = {
+			cmd = { "ConformInfo" },
+			formatters_by_ft = {
+				lua = { "stylua" },
+				html = { "prettierd" },
+				javascript = { "prettierd" },
+				javascriptreact = { "prettierd" },
+				typescript = { "prettierd" },
+				typescriptreact = { "prettierd" },
+				python = { "black", "isort" },
+				php = { "pretty-php", "duster" },
+				gdscript = { "gdformat" },
+			},
+		},
+	},
+	-- Snippet Engine
+	{
+		"L3MON4D3/LuaSnip",
+
+		build = (function()
+			-- Build Step is needed for regex support in snippets.
+			-- This step is not supported in many windows environments.
+			-- Remove the below condition to re-enable on windows.
+			if vim.fn.has("win32") == 1 or vim.fn.executable("make") == 0 then
+				return
+			end
+			return "make install_jsregexp"
+		end)(),
+
+		opts = {},
+		config = config_luasnip,
+	},
+})
+
+--------------
+-- AUTOCMDS --
+--------------
+vim.api.nvim_create_autocmd({ "BufWritePre", "FocusLost", "BufLeave" }, {
+	desc = "Format on save",
+	pattern = "*",
+	group = vim.api.nvim_create_augroup("Autoformat", { clear = true }),
+	callback = function(ev)
+		if
+			vim.api.nvim_buf_is_valid(ev.buf)
+			and vim.bo[ev.buf].buftype == ""
+			and vim.bo[ev.buf].modified
+			and not vim.bo[ev.buf].readonly
+		then
+			require("conform").format({
+				buf = ev.buf,
+				lsp_format = "fallback",
+			}, function()
+				vim.cmd("silent! write")
+			end)
+		end
+	end,
+})
+
+vim.api.nvim_create_autocmd({ "BufReadPost" }, {
+	desc = "Fix Code Folding",
+	pattern = "*",
+	group = vim.api.nvim_create_augroup("Set Buffer Options", { clear = true }),
+	callback = function(ev)
+		local filetype = vim.bo[ev.buf].filetype
+		if filetype == "python" then
+			vim.opt.foldmethod = "indent"
+			vim.opt.foldexpr = nil
+		else
+			vim.opt.foldmethod = "expr"
+			vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
+		end
+	end,
+})
 
 vim.api.nvim_create_autocmd("LspAttach", {
 	group = vim.api.nvim_create_augroup("lsp-attach", { clear = true }),
@@ -201,8 +390,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		fmap("D", vim.lsp.buf.declaration, "[D]eclaration")
 
 		rmap("n", vim.lsp.buf.rename, "[N]ame")
-		map("ca", vim.lsp.buf.code_action, "[C]ode [A]ction", {}, { "n", "x" })
-		map("cf", vim.lsp.buf.format, "[C]ode [F]ormat")
+		cmap("a", vim.lsp.buf.code_action, "[A]ction", { "n", "x" })
 		map("hd", vim.lsp.buf.hover, "[H]over [D]ocumentation")
 
 		local client = vim.lsp.get_client_by_id(event.data.client_id)
@@ -256,166 +444,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
 					callback()
 				end
 			end
-		end
-	end,
-})
-
-local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not (vim.uv or vim.loop).fs_stat(lazypath) then
-	local lazyrepo = "https://github.com/folke/lazy.nvim.git"
-	local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
-	if vim.v.shell_error ~= 0 then
-		error("Error cloning lazy.nvim:\n" .. out)
-	end
-end
-local rtp = vim.opt.rtp
-rtp:prepend(lazypath)
-require("lazy").setup({
-	{ "NMAC427/guess-indent.nvim", opts = {} },
-	{
-		"folke/which-key.nvim",
-		event = "VimEnter",
-		opts = { delay = 0 },
-	},
-	{ "windwp/nvim-autopairs", opts = {} },
-	{
-		"nvim-telescope/telescope.nvim",
-		event = "VimEnter",
-		dependencies = {
-			"nvim-lua/plenary.nvim",
-			{
-				"nvim-telescope/telescope-fzf-native.nvim",
-				build = "make",
-				cond = function()
-					return vim.fn.executable("make") == 1
-				end,
-			},
-			"nvim-telescope/telescope-ui-select.nvim",
-		},
-		opts = {},
-		config = config_telescope,
-	},
-	{
-		"neovim/nvim-lspconfig",
-		dependencies = {
-			{ "mason-org/mason.nvim", opts = {} },
-			{ "mason-org/mason-lspconfig.nvim", opts = {} },
-			{
-				"WhoIsSethDaniel/mason-tool-installer.nvim",
-				opts = { ensure_installed = ensure_installed },
-			},
-			{ "j-hui/fidget.nvim", opts = {} },
-			"saghen/blink.cmp",
-		},
-		config = config_lspconfig,
-	},
-	{
-		"stevearc/conform.nvim",
-		event = { "BufWritePre" },
-		cmd = { "ConformInfo" },
-		keys = {},
-		opts = {
-			notify_on_error = true,
-			formatters_by_ft = {
-				lua = { "stylua" },
-				python = { "isort", "black" },
-				html = { "prettierd", "prettier", stop_after_first = true },
-				json = { "prettierd", "prettier", stop_after_first = true },
-				javascript = { "prettierd", "prettier", stop_after_first = true },
-				typescript = { "prettierd", "prettier", stop_after_first = true },
-				javascriptreact = { "prettierd", "prettier", stop_after_first = true },
-				typescriptreact = { "prettierd", "prettier", stop_after_first = true },
-				php = { "pretty-php", "duster" },
-				gdscript = { "gdformat" },
-			},
-		},
-	},
-	{
-		"saghen/blink.cmp",
-		event = "VimEnter",
-		version = "1.*",
-		opts = {
-			keymap = {
-				preset = "super-tab",
-				["<CR>"] = { "accept", "fallback" },
-			},
-			completion = {
-				documentation = { auto_show = true, auto_show_delay_ms = 250 },
-				menu = {
-					draw = {
-						components = {
-							kind_icon = {
-								text = function(ctx)
-									return ctx.kind
-								end,
-							},
-						},
-					},
-				},
-			},
-			sources = {
-				default = { "lsp", "path", "buffer" },
-				providers = {
-					lsp = { score_offset = 0, fallbacks = {} },
-					path = { score_offset = -10 },
-					buffer = { score_offset = -30 },
-				},
-			},
-			fuzzy = {
-				implementation = "lua",
-				sorts = { "sort_text", "score", "label" },
-			},
-			signature = { enabled = true },
-		},
-	},
-	{
-		"nvim-treesitter/nvim-treesitter",
-		build = ":TSUpdate",
-		main = "nvim-treesitter.configs",
-		opts = {
-			auto_install = true,
-			highlight = { enable = true },
-			indent = { enable = true, disable = { "gdscript" } },
-		},
-	},
-})
-
---------------
--- AUTOCMDS --
---------------
-vim.api.nvim_create_autocmd({ "BufWritePre", "FocusLost", "BufLeave" }, {
-	desc = "Format on save",
-	pattern = "*",
-	group = vim.api.nvim_create_augroup("Autoformat", { clear = true }),
-	callback = function(ev)
-		if
-			vim.api.nvim_buf_is_valid(ev.buf)
-			and vim.bo[ev.buf].buftype == ""
-			and vim.bo[ev.buf].modified
-			and not vim.bo[ev.buf].readonly
-		then
-			require("conform").format({
-				buf = ev.buf,
-				lsp_format = "fallback",
-			}, function()
-				vim.cmd("silent! write")
-			end)
-		end
-	end,
-})
-
-vim.api.nvim_create_autocmd({ "BufReadPost" }, {
-	desc = "Fix Code Folding",
-	pattern = "*",
-	group = vim.api.nvim_create_augroup("Set Buffer Options", { clear = true }),
-	callback = function(ev)
-		local filetype = vim.bo[ev.buf].filetype
-		if filetype == "python" then
-			vim.opt.foldmethod = "indent"
-			vim.opt.foldexpr = nil
-		else
-			vim.opt.foldmethod = "expr"
-			vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
 		end
 	end,
 })
