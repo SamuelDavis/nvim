@@ -135,6 +135,7 @@ local servers = {
 			on_dir(root)
 		end,
 	},
+	"cssls",
 	"pyright",
 	"intelephense",
 	"bashls",
@@ -206,7 +207,6 @@ function config_lspconfig()
 end
 
 function config_luasnip()
-	print("hello")
 	local snip = require("luasnip")
 
 	snip.add_snippets("html", {
@@ -264,10 +264,7 @@ require("lazy").setup({
 	{
 		"saghen/blink.cmp",
 		opts = {
-			keymap = {
-				preset = "super-tab",
-				["<CR>"] = { "accept", "fallback" },
-			},
+			keymap = { preset = "super-tab" },
 			completion = {
 				documentation = { auto_show = true, auto_show_delay_ms = 250 },
 				menu = {
