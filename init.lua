@@ -139,13 +139,6 @@ local servers = {
 	"pyright",
 	"intelephense",
 	"bashls",
-	-- formatters
-	"stylua",
-	"prettierd",
-	"isort",
-	"black",
-	"pretty-php",
-	"gdtoolkit",
 }
 local _servers = {}
 for k, v in pairs(servers) do
@@ -156,7 +149,14 @@ for k, v in pairs(servers) do
 	end
 end
 servers = _servers
-local formatters = {}
+local formatters = {
+	"stylua",
+	"prettierd",
+	"isort",
+	"black",
+	"pretty-php",
+	"gdtoolkit",
+}
 local ensure_installed = vim.iter({ vim.tbl_keys(servers), formatters }):flatten():totable()
 
 function config_telescope()
@@ -208,32 +208,6 @@ function config_lspconfig()
 	end
 end
 
-function config_luasnip()
-	local snip = require("luasnip")
-	local text = snip.text_node
-	local cursor = snip.insert_node
-	snip.filetype_extend("javascriptreact", { "javascript" })
-	snip.filetype_extend("typescriptreact", { "typescript", "javascriptreact", "javascript" })
-
-	snip.add_snippets("html", {
-		snip.snippet("favicon", {
-			snip.text_node('<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=">'),
-		}),
-	})
-
-	snip.add_snippets("javascript", {
-		snip.snippet("defunc", {
-			text("export default function"),
-			cursor(1),
-			text("("),
-			cursor(2),
-			text(") { return ("),
-			cursor(3, "null"),
-			text("); }"),
-		}),
-	})
-end
-
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
 	local lazyrepo = "https://github.com/folke/lazy.nvim.git"
@@ -283,7 +257,19 @@ require("lazy").setup({
 		"saghen/blink.cmp",
 		opts = {
 			keymap = { preset = "super-tab" },
-			snippets = { preset = "luasnip" },
+			sources = {
+				providers = {
+					snippets = {
+						opts = {
+							extended_filetypes = {
+								typescriptreact = { "typescript", "javascript", "html" },
+								javascriptreact = { "javascript", "html" },
+								typescript = { "javascript" },
+							},
+						},
+					},
+				},
+			},
 			completion = {
 				documentation = { auto_show = true, auto_show_delay_ms = 250 },
 				menu = {
@@ -332,23 +318,6 @@ require("lazy").setup({
 				gdscript = { "gdformat" },
 			},
 		},
-	},
-	-- Snippet Engine
-	{
-		"L3MON4D3/LuaSnip",
-
-		build = (function()
-			-- Build Step is needed for regex support in snippets.
-			-- This step is not supported in many windows environments.
-			-- Remove the below condition to re-enable on windows.
-			if vim.fn.has("win32") == 1 or vim.fn.executable("make") == 0 then
-				return
-			end
-			return "make install_jsregexp"
-		end)(),
-
-		opts = {},
-		config = config_luasnip,
 	},
 })
 
