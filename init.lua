@@ -255,10 +255,21 @@ require("lazy").setup({
 	},
 	{
 		"saghen/blink.cmp",
+		dependencies = {
+			-- "milanglacier/minuet-ai.nvim",
+		},
 		opts = {
 			keymap = { preset = "super-tab" },
 			sources = {
+				default = { "lsp", "buffer", "snippets", "path" }, -- "minuet" },
 				providers = {
+					minuet = {
+						name = "minuet",
+						module = "minuet.blink",
+						async = true,
+						timeout_ms = 3000,
+						score_offset = 80,
+					},
 					snippets = {
 						opts = {
 							extended_filetypes = {
@@ -289,6 +300,31 @@ require("lazy").setup({
 				sorts = { "sort_text", "score", "label" },
 			},
 			signature = { enabled = true },
+		},
+	},
+	{
+		"milanglacier/minuet-ai.nvim",
+		enabled = false,
+		dependencies = { "nvim-lua/plenary.nvim" },
+		opts = {
+			provider = "openai_fim_compatible",
+			request_timeout = 3.0,
+			n_completions = 1,
+			context_window = 512,
+			provider_options = {
+				openai_fim_compatible = {
+					api_key = "TERM",
+					name = "Ollama",
+					end_point = "http://localhost:11434/v1/completions",
+					model = vim.env.NVIM_OLLAMA_MODEL or "qwen2.5-coder:7b",
+					optional = { max_tokens = 98, top_p = 0.9 },
+				},
+			},
+			cmp = { enable_auto_complete = false },
+			virtualtext = {
+				auto_trigger_ft = { "typescript", "typescriptreact", "python", "php", "lua" },
+				keymap = { accept = "<Tab>", dismiss = "<C-e>", next = "<C-]>", prev = "<C-[>" },
+			},
 		},
 	},
 	{
