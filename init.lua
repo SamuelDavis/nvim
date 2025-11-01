@@ -102,6 +102,54 @@ cmap("f", function()
 	require("conform").format({ async = true, lsp_format = "fallback" })
 end, "[F]ormat")
 
+---------
+-- LLM --
+---------
+local uv = vim.uv or vim.loop
+local function ping_ollama(host, port, timeout_ms)
+	host = host or "127.0.0.1"
+	port = port or 11434
+	timeout_ms = timeout_ms or 500
+
+	local tcp = uv.new_tcp()
+	local done, ok = false, false
+	local buf = {}
+
+	tcp:connect(host, port, function(e)
+		if e then
+			done = true
+			return
+		end
+		tcp:write("GET / HTTP/1.0\r\nHost: " .. host .. "\r\n\r\n")
+		tcp:read_start(function(err, chunk)
+			if err then
+				ok, done = false, true
+				return
+			end
+			if chunk then
+				table.insert(buf, chunk)
+				return
+			end
+			local body = table.concat(buf)
+			done, ok = true, body:find("Ollama is running", 1, true) ~= nil
+		end)
+	end)
+
+	vim.wait(timeout_ms, function()
+		return done
+	end, 10)
+	pcall(function()
+		tcp:shutdown()
+	end)
+	pcall(function()
+		tcp:close()
+	end)
+
+	return ok
+end
+local ollama_available = ping_ollama()
+local model = os.getenv("NVIM_OLLAMA_MODEL")
+
 -------------
 -- PLUGINS --
 -------------
@@ -159,7 +207,7 @@ local formatters = {
 }
 local ensure_installed = vim.iter({ vim.tbl_keys(servers), formatters }):flatten():totable()
 
-function config_telescope()
+local function config_telescope()
 	local telescope = require("telescope")
 
 	local file_ignore_patterns = vim.iter({
@@ -198,7 +246,7 @@ function config_telescope()
 	fmap(".", builtin.current_buffer_fuzzy_find, "[.] Here")
 end
 
-function config_lspconfig()
+local function config_lspconfig()
 	local blink = require("blink.cmp")
 	local capabilities = blink.get_lsp_capabilities()
 	for name, server in pairs(servers) do
@@ -208,8 +256,66 @@ function config_lspconfig()
 	end
 end
 
+local function config_blink()
+	local blink = require("blink.cmp")
+
+	local keymap = { preset = "super-tab" }
+	local sources = { "lsp", "buffer", "snippets", "path" }
+	local providers = {
+		snippets = {
+			opts = {
+				extended_filetypes = {
+					typescriptreact = { "typescript", "javascript", "html" },
+					javascriptreact = { "javascript", "html" },
+					typescript = { "javascript" },
+				},
+			},
+		},
+	}
+
+	if ollama_available then
+		local minuet = require("minuet")
+		keymap["<A-y>"] = minuet and minuet.make_blink_map()
+		table.insert(sources, "minuet")
+		providers.minuet = {
+			name = "minuet",
+			module = "minuet.blink",
+			async = true,
+			timeout_ms = 3000,
+			score_offset = 80,
+		}
+	end
+
+	blink.setup({
+		keymap = keymap,
+		sources = {
+			default = sources,
+			providers = providers,
+		},
+		completion = {
+			documentation = { auto_show = true, auto_show_delay_ms = 250 },
+			menu = {
+				draw = {
+					components = {
+						kind_icon = {
+							text = function(ctx)
+								return ctx.kind
+							end,
+						},
+					},
+				},
+			},
+		},
+		fuzzy = {
+			implementation = "lua",
+			sorts = { "sort_text", "score", "label" },
+		},
+		signature = { enabled = true },
+	})
+end
+
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not (vim.uv or vim.loop).fs_stat(lazypath) then
+if not uv.fs_stat(lazypath) then
 	local lazyrepo = "https://github.com/folke/lazy.nvim.git"
 	local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
 	if vim.v.shell_error ~= 0 then
@@ -255,60 +361,15 @@ require("lazy").setup({
 	},
 	{
 		"saghen/blink.cmp",
-		dependencies = {
-			-- "milanglacier/minuet-ai.nvim",
-		},
-		opts = {
-			keymap = { preset = "super-tab" },
-			sources = {
-				default = { "lsp", "buffer", "snippets", "path" }, -- "minuet" },
-				providers = {
-					minuet = {
-						name = "minuet",
-						module = "minuet.blink",
-						async = true,
-						timeout_ms = 3000,
-						score_offset = 80,
-					},
-					snippets = {
-						opts = {
-							extended_filetypes = {
-								typescriptreact = { "typescript", "javascript", "html" },
-								javascriptreact = { "javascript", "html" },
-								typescript = { "javascript" },
-							},
-						},
-					},
-				},
-			},
-			completion = {
-				documentation = { auto_show = true, auto_show_delay_ms = 250 },
-				menu = {
-					draw = {
-						components = {
-							kind_icon = {
-								text = function(ctx)
-									return ctx.kind
-								end,
-							},
-						},
-					},
-				},
-			},
-			fuzzy = {
-				implementation = "lua",
-				sorts = { "sort_text", "score", "label" },
-			},
-			signature = { enabled = true },
-		},
+		dependencies = ollama_available and { "milanglacier/minuet-ai.nvim" } or {},
+		config = config_blink,
 	},
 	{
 		"milanglacier/minuet-ai.nvim",
-		enabled = false,
+		enabled = model and ollama_available,
 		dependencies = { "nvim-lua/plenary.nvim" },
 		opts = {
 			provider = "openai_fim_compatible",
-			request_timeout = 3.0,
 			n_completions = 1,
 			context_window = 512,
 			provider_options = {
@@ -316,14 +377,12 @@ require("lazy").setup({
 					api_key = "TERM",
 					name = "Ollama",
 					end_point = "http://localhost:11434/v1/completions",
-					model = vim.env.NVIM_OLLAMA_MODEL or "qwen2.5-coder:7b",
-					optional = { max_tokens = 98, top_p = 0.9 },
+					model = model,
+					optional = {
+						max_tokens = 56,
+						top_p = 0.9,
+					},
 				},
-			},
-			cmp = { enable_auto_complete = false },
-			virtualtext = {
-				auto_trigger_ft = { "typescript", "typescriptreact", "python", "php", "lua" },
-				keymap = { accept = "<Tab>", dismiss = "<C-e>", next = "<C-]>", prev = "<C-[>" },
 			},
 		},
 	},
