@@ -172,7 +172,9 @@ function config_telescope()
 		-- godot
 		{ "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" },
 		-- vendor
-		{ "node_modules", "vendor" },
+		{ "package%-lock.json", "node_modules/", "vendor/" },
+		-- build
+		{ "dist/" },
 	})
 		:flatten()
 		:totable()
@@ -208,10 +210,26 @@ end
 
 function config_luasnip()
 	local snip = require("luasnip")
+	local text = snip.text_node
+	local cursor = snip.insert_node
+	snip.filetype_extend("javascriptreact", { "javascript" })
+	snip.filetype_extend("typescriptreact", { "typescript", "javascriptreact", "javascript" })
 
 	snip.add_snippets("html", {
 		snip.snippet("favicon", {
 			snip.text_node('<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=">'),
+		}),
+	})
+
+	snip.add_snippets("javascript", {
+		snip.snippet("defunc", {
+			text("export default function"),
+			cursor(1),
+			text("("),
+			cursor(2),
+			text(") { return ("),
+			cursor(3, "null"),
+			text("); }"),
 		}),
 	})
 end
@@ -265,6 +283,7 @@ require("lazy").setup({
 		"saghen/blink.cmp",
 		opts = {
 			keymap = { preset = "super-tab" },
+			snippets = { preset = "luasnip" },
 			completion = {
 				documentation = { auto_show = true, auto_show_delay_ms = 250 },
 				menu = {
@@ -302,6 +321,7 @@ require("lazy").setup({
 			cmd = { "ConformInfo" },
 			formatters_by_ft = {
 				lua = { "stylua" },
+				json = { "prettierd" },
 				html = { "prettierd" },
 				javascript = { "prettierd" },
 				javascriptreact = { "prettierd" },
