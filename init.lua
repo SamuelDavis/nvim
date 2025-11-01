@@ -89,6 +89,7 @@ local dmap = keymap_prefix("d", "[D]iagnostic")
 local fmap = keymap_prefix("f", "[F]ind")
 local rmap = keymap_prefix("r", "[R]eplace")
 local cmap = keymap_prefix("c", "[C]ode")
+local hmap = keymap_prefix("h", "[H]over")
 
 dmap("o", vim.diagnostic.open_float, "[O]pen")
 dmap("p", vim.diagnostic.get_prev, "[P]rev")
@@ -414,6 +415,17 @@ require("lazy").setup({
 			},
 		},
 	},
+	{
+		"rmagatti/goto-preview",
+		dependencies = { "rmagatti/logger.nvim" },
+		event = "BufEnter",
+		opts = {},
+		config = function()
+			local preview = require("goto-preview")
+			preview.setup()
+			hmap("p", preview.goto_preview_definition, "[P]review")
+		end,
+	},
 })
 
 --------------
@@ -472,7 +484,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 
 		rmap("n", vim.lsp.buf.rename, "[N]ame")
 		cmap("a", vim.lsp.buf.code_action, "[A]ction", { "n", "x" })
-		map("hd", vim.lsp.buf.hover, "[H]over [D]ocumentation")
+		hmap("d", vim.lsp.buf.hover, "[D]ocumentation")
 
 		local client = vim.lsp.get_client_by_id(event.data.client_id)
 
