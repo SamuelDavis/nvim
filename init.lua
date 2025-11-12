@@ -65,6 +65,8 @@ end
 -------------
 -- KEYMAPS --
 -------------
+vim.keymap.set("n", "j", "gj", { noremap = true })
+vim.keymap.set("n", "k", "gk", { noremap = true })
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
 vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 
@@ -148,8 +150,8 @@ local function ping_ollama(host, port, timeout_ms)
 
 	return ok
 end
-local ollama_available = ping_ollama()
 local model = os.getenv("NVIM_OLLAMA_MODEL")
+local ollama_available = ping_ollama() and model
 
 -------------
 -- PLUGINS --
@@ -186,7 +188,15 @@ local servers = {
 	},
 	"cssls",
 	"pyright",
-	"intelephense",
+	intelephense = {
+		settings = {
+			intelephense = {
+				environment = {
+					phpVersion = vim.fn.systemlist("php --version")[1]:match("PHP%s+([%d%.]+)"),
+				},
+			},
+		},
+	},
 	"bashls",
 }
 local _servers = {}
