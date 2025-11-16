@@ -217,6 +217,7 @@ local formatters = {
 	"gdtoolkit",
 }
 local ensure_installed = vim.iter({ vim.tbl_keys(servers), formatters }):flatten():totable()
+servers["gdscript"] = {}
 
 local function config_telescope()
 	local telescope = require("telescope")
