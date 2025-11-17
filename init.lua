@@ -192,7 +192,8 @@ local servers = {
 		settings = {
 			intelephense = {
 				environment = {
-					phpVersion = vim.fn.systemlist("php --version")[1]:match("PHP%s+([%d%.]+)"),
+					phpVersion = vim.env("PHP_VERSION")
+						or vim.fn.systemlist("php --version")[1]:match("PHP%s+([%d%.]+)"),
 				},
 			},
 		},
@@ -224,7 +225,7 @@ local function config_telescope()
 
 	local file_ignore_patterns = vim.iter({
 		--misc
-		{ "%.ttf" },
+		{ "%.ttf", ".git/" },
 		-- audio
 		{ "%.mp3", "%.wav" },
 		-- images
@@ -250,10 +251,12 @@ local function config_telescope()
 
 	local builtin = require("telescope.builtin")
 	dmap("l", builtin.diagnostics, "[L]ist")
-	fmap("f", builtin.find_files, "[F]iles")
+	fmap("f", function()
+		builtin.find_files({ hidden = true, no_ignore = true })
+	end, "[F]iles")
 	fmap("b", builtin.buffers, "[B]uffers")
 	fmap("n", builtin.resume, "[N]ext")
-	fmap("r", builtin.oldfiles, "[R]ecent")
+	fmap("o", builtin.oldfiles, "[O]old")
 	fmap("g", builtin.live_grep, "[G]rep")
 	fmap(".", builtin.current_buffer_fuzzy_find, "[.] Here")
 end
