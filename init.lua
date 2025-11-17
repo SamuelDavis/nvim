@@ -192,7 +192,7 @@ local servers = {
 		settings = {
 			intelephense = {
 				environment = {
-					phpVersion = vim.env("PHP_VERSION")
+					phpVersion = os.getenv("PHP_VERSION")
 						or vim.fn.systemlist("php --version")[1]:match("PHP%s+([%d%.]+)"),
 				},
 			},
