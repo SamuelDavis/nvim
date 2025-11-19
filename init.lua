@@ -74,16 +74,16 @@ local function map(key, fn, desc, mode)
 	vim.keymap.set(mode or "n", "<leader>" .. key, fn, { desc = desc })
 end
 
+local prefixes = {}
 local function keymap_prefix(prefix_key, prefix_desc)
-	prefix_key = prefix_key
-	vim.api.nvim_create_autocmd("User", {
-		callback = function()
-			require("which-key").add({ "<leader>" .. prefix_key, group = prefix_desc })
-		end,
-	})
-
 	return function(key, fn, desc, mode)
-		map(prefix_key .. key, fn, prefix_desc .. " " .. desc, mode)
+		local prefix = prefix_key
+		vim.api.nvim_create_autocmd("User", {
+			callback = function()
+				require("which-key").add({ "<leader>" .. prefix, group = prefix_desc, mode = mode })
+			end,
+		})
+		map(prefix .. key, fn, prefix_desc .. " " .. desc, mode)
 	end
 end
 
@@ -342,7 +342,22 @@ rtp:prepend(lazypath)
 require("lazy").setup({
 	{ "NMAC427/guess-indent.nvim", opts = {} },
 	{ "windwp/nvim-autopairs", opts = {} },
-	{ "folke/which-key.nvim", opts = {} },
+	{
+		"folke/which-key.nvim",
+		opts = {
+			plugins = {
+				presets = {
+					motions = false,
+				},
+			},
+			icons = {
+				keys = {
+					Esc = "⨉ ",
+					BS = "↩ ",
+				},
+			},
+		},
+	},
 	{
 		"nvim-telescope/telescope.nvim",
 		dependencies = {
@@ -438,6 +453,7 @@ require("lazy").setup({
 			local preview = require("goto-preview")
 			preview.setup()
 			hmap("p", preview.goto_preview_definition, "[P]review")
+			hmap("q", preview.close_all_win, "[Q]uit")
 		end,
 	},
 })
