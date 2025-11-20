@@ -61,6 +61,8 @@ local undopoints = { " ", ",", ".", "!", "?", ";", ":", "(", ")", "[", "]", "{",
 for _, ch in ipairs(undopoints) do
 	vim.keymap.set("i", ch, ch .. "<C-g>u", { noremap = true })
 end
+-- buffer metadata
+vim.o.statusline = "%f"
 
 -------------
 -- KEYMAPS --
@@ -256,7 +258,7 @@ local function config_telescope()
 	end, "[F]iles")
 	fmap("b", builtin.buffers, "[B]uffers")
 	fmap("n", builtin.resume, "[N]ext")
-	fmap("o", builtin.oldfiles, "[O]old")
+	fmap("o", builtin.oldfiles, "[O]ld")
 	fmap("g", builtin.live_grep, "[G]rep")
 	fmap(".", builtin.current_buffer_fuzzy_find, "[.] Here")
 end
