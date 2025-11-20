@@ -76,7 +76,6 @@ local function map(key, fn, desc, mode)
 	vim.keymap.set(mode or "n", "<leader>" .. key, fn, { desc = desc })
 end
 
-local prefixes = {}
 local function keymap_prefix(prefix_key, prefix_desc)
 	return function(key, fn, desc, mode)
 		local prefix = prefix_key
