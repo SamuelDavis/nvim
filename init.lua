@@ -249,10 +249,10 @@ end
 servers = _servers
 local formatters = {
 	"stylua",
+	"prettier",
 	"prettierd",
 	"isort",
 	"black",
-	"pretty-php",
 	"gdtoolkit",
 }
 local ensure_installed = vim.iter({ vim.tbl_keys(servers), formatters }):flatten():totable()
@@ -477,7 +477,7 @@ require("lazy").setup({
 				typescript = { "prettierd" },
 				typescriptreact = { "prettierd" },
 				python = { "black", "isort" },
-				php = { "pretty-php", "duster" },
+				php = { "prettier" },
 				gdscript = { "gdformat" },
 			},
 		},
