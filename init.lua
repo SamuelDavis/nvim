@@ -77,16 +77,21 @@ local function map(key, fn, desc, mode)
 end
 
 local function keymap_prefix(prefix_key, prefix_desc)
+	prefixes[prefix_key] = prefix_desc
 	return function(key, fn, desc, mode)
-		local prefix = prefix_key
-		vim.api.nvim_create_autocmd("User", {
-			callback = function()
-				require("which-key").add({ "<leader>" .. prefix, group = prefix_desc, mode = mode })
-			end,
-		})
-		map(prefix .. key, fn, prefix_desc .. " " .. desc, mode)
+		map(prefix_key .. key, fn, prefix_desc .. " " .. desc, mode)
 	end
 end
+vim.api.nvim_create_autocmd("VimEnter", {
+	callback = function()
+		local whichkey = require("which-key")
+		for key, description in pairs(prefixes) do
+			whichkey.add({
+				{ "<leader>" .. key, group = description },
+			})
+		end
+	end,
+})
 
 local dmap = keymap_prefix("d", "[D]iagnostic")
 local fmap = keymap_prefix("f", "[F]ind")
