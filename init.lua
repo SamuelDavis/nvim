@@ -202,7 +202,7 @@ local servers = {
 					phpVersion = os.getenv("PHP_VERSION")
 						or vim.fn.systemlist("php --version")[1]:match("PHP%s+([%d%.]+)"),
 				},
-								stubs = {
+				stubs = {
 					"apache",
 					"bcmath",
 					"bz2",
@@ -319,7 +319,7 @@ local function config_blink()
 	local blink = require("blink.cmp")
 
 	local keymap = { preset = "super-tab" }
-	local sources = { "lsp", "buffer", "snippets", "path" }
+	local sources = { "lsp", "buffer", "path", "snippets" }
 	local providers = {
 		snippets = {
 			opts = {
@@ -329,6 +329,23 @@ local function config_blink()
 					typescript = { "javascript" },
 				},
 			},
+		},
+		lsp = {
+			fallbacks = { "buffer" },
+			transform_items = function(_, items)
+				local filtered = {}
+				for _, item in ipairs(items) do
+					local label = item.label or ""
+					local detail = item.detail or ""
+					local label_description = item.label_description or ""
+					local text = label .. " " .. detail .. " " .. label_description
+					if not text:match("solid%-js/.*server") then
+						table.insert(filtered, item)
+					end
+				end
+
+				return filtered
+			end,
 		},
 	}
 
