@@ -269,7 +269,7 @@ local function config_telescope()
 
 	local file_ignore_patterns = vim.iter({
 		--misc
-		{ "%.ttf", ".git/" },
+		{ "%.ttf", ".git/", "*.lock" },
 		-- audio
 		{ "%.mp3", "%.wav" },
 		-- images
