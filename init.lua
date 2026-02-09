@@ -49,7 +49,7 @@ vim.o.mouse = "a"
 -- search
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
-vim.cmd.colorscheme("retrobox")
+vim.cmd.colorscheme("slate")
 -- prompt before clobbering buffer
 vim.o.confirm = true
 -- clipboard
@@ -194,6 +194,7 @@ local servers = {
 		end,
 	},
 	"cssls",
+	"tailwindcss",
 	"pyright",
 	intelephense = {
 		settings = {
@@ -243,6 +244,7 @@ local servers = {
 		},
 	},
 	"bashls",
+	"emmet-language-server",
 }
 local _servers = {}
 for k, v in pairs(servers) do
@@ -495,6 +497,7 @@ require("lazy").setup({
 				lua = { "stylua" },
 				json = { "prettierd" },
 				html = { "prettierd" },
+				css = { "prettierd" },
 				javascript = { "prettierd" },
 				javascriptreact = { "prettierd" },
 				typescript = { "prettierd" },
