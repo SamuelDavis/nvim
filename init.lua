@@ -39,7 +39,7 @@ vim.opt.inccommand = "split"
 -- code folds
 vim.opt.foldenable = true
 vim.opt.foldmethod = "indent"
-vim.opt.foldexpr = nil
+vim.opt.foldexpr = ""
 vim.opt.foldlevel = 9999
 -- indentation
 vim.opt.tabstop = 4
