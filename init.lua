@@ -546,18 +546,18 @@ vim.api.nvim_create_autocmd({ "BufWritePre", "FocusLost", "BufLeave" }, {
 	end,
 })
 
-vim.api.nvim_create_autocmd({ "BufReadPost" }, {
+vim.api.nvim_create_autocmd({ "FileType" }, {
 	desc = "Fix Code Folding",
 	pattern = "*",
 	group = vim.api.nvim_create_augroup("Set Buffer Options", { clear = true }),
 	callback = function(ev)
 		local filetype = vim.bo[ev.buf].filetype
 		if filetype == "python" then
-			vim.opt.foldmethod = "indent"
-			vim.opt.foldexpr = nil
+			vim.opt_local.foldmethod = "indent"
+			vim.opt_local.foldexpr = ""
 		else
-			vim.opt.foldmethod = "expr"
-			vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
+			vim.opt_local.foldmethod = "expr"
+			vim.opt_local.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 		end
 	end,
 })
