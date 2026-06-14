@@ -454,7 +454,7 @@ require("lazy").setup({
 	},
 	{
 		"saghen/blink.cmp",
-		dependencies = ollama_available and { "milanglacier/minuet-ai.nvim" } or {},
+		dependencies = { "saghen/blink.lib" }, -- ollama_available and { "milanglacier/minuet-ai.nvim" } or {},
 		config = config_blink,
 	},
 	{
