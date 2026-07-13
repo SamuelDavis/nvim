@@ -1,0 +1,6 @@
+{
+  "export function": {
+    "prefix": "defunc",
+    "body": "export function ${1:name}(${2}) {\n\t$0\n}"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "nvim-formatters",
+  "private": true,
+  "description": "Pinned so conform's prettier resolves @prettier/plugin-php on every machine.",
+  "dependencies": {
+    "@prettier/plugin-php": "^0.24.0",
+    "prettier": "^3.6.2"
+  }
+}
