@@ -1,9 +1,3 @@
--------------
--- PROJECT --
--------------
--- The one answer to "where am I". Three callers: startup cd, LSP root_dir,
--- formatter choice. Closest marker wins; within a directory, deno beats node
--- (a Deno project may carry a package.json for tooling).
 local MARKERS = { "deno.json", "deno.jsonc", "package.json", "project.godot", ".git" }
 
 local function project(path)
@@ -27,7 +21,6 @@ local function project(path)
 	return { root = vim.fs.dirname(hit), kind = kind }
 end
 
--- `nvim {dir}` => that dir. `nvim {file}` => the file's project root, seeking upward.
 local target = vim.fn.argv(0)
 if type(target) == "string" and target ~= "" then
 	local path = vim.fn.fnamemodify(target, ":p")
@@ -119,6 +112,9 @@ rmap("l", ":s/", "[L]ine", { mode = "v" })
 cmap("f", function()
 	require("conform").format({ async = true, lsp_format = "fallback" })
 end, "[F]ormat")
+cmap("c", function()
+	vim.api.nvim_feedkeys(vim.keycode("a<C-Space>"), "t", false)
+end, "[C]omplete")
 
 vim.diagnostic.config({ virtual_text = true })
 
@@ -162,6 +158,7 @@ vim.pack.add({
 	gh("rmagatti/goto-preview"),
 	gh("rmagatti/logger.nvim"),
 	gh("j-hui/fidget.nvim"),
+	gh("milanglacier/minuet-ai.nvim"),
 }, { confirm = false })
 
 -- fzf's binary is built into the plugin dir by the PackChanged hook above.
@@ -177,20 +174,61 @@ local config_dir = vim.fn.stdpath("config")
 if vim.fn.isdirectory(config_dir .. "/node_modules") == 0 and vim.fn.executable("npm") == 1 then
 	local cmd = vim.fn.filereadable(config_dir .. "/package-lock.json") == 1 and "ci" or "install"
 	vim.notify("nvim: installing prettier…")
-	vim.system({ "npm", cmd, "--no-audit", "--no-fund" }, { cwd = config_dir }, function(r)
-		vim.notify(r.code == 0 and "nvim: prettier ready" or ("nvim: npm failed\n" .. r.stderr))
-	end)
+	vim.system(
+		{ "npm", cmd, "--no-audit", "--no-fund" },
+		{ cwd = config_dir },
+		vim.schedule_wrap(function(r)
+			vim.notify(r.code == 0 and "nvim: prettier ready" or ("nvim: npm failed\n" .. r.stderr))
+		end)
+	)
 end
 
--- Mason installs servers, not toolchains. Name what's missing rather than failing quietly.
 vim.schedule(function()
 	local missing = vim.tbl_filter(function(exe)
 		return vim.fn.executable(exe) == 0
-	end, { "git", "node", "npm", "deno", "php", "python3", "cc", "rg" })
+	end, { "git", "node", "npm", "deno", "php", "python3", "cc", "rg", "curl", "ollama" })
 	if #missing > 0 then
 		vim.notify("nvim: missing toolchains: " .. table.concat(missing, ", "), vim.log.levels.WARN)
 	end
 end)
+
+local function env(name, default)
+	local v = os.getenv(name)
+	if v == nil or v == "" then
+		return default
+	end
+	return tonumber(v) or v
+end
+
+local LLM = {
+	model = env("NVIM_LLM_MODEL", "qwen2.5-coder:1.5b-base"),
+	endpoint = env("NVIM_LLM_ENDPOINT", "http://localhost:11434/v1/completions"),
+	context = env("NVIM_LLM_CONTEXT", 8000),
+	max_tokens = env("NVIM_LLM_MAX_TOKENS", 256),
+	timeout = env("NVIM_LLM_TIMEOUT", 5),
+	throttle = env("NVIM_LLM_THROTTLE", 200),
+	debounce = env("NVIM_LLM_DEBOUNCE", 150),
+}
+
+if vim.fn.executable("ollama") == 1 and LLM.endpoint:match("^http://localhost") then
+	vim.system(
+		{ "ollama", "list" },
+		{ text = true },
+		vim.schedule_wrap(function(r)
+			if r.code ~= 0 or r.stdout:find(LLM.model, 1, true) then
+				return
+			end
+			vim.notify("nvim: pulling " .. LLM.model .. "…")
+			vim.system(
+				{ "ollama", "pull", LLM.model },
+				{},
+				vim.schedule_wrap(function(p)
+					vim.notify(p.code == 0 and "nvim: " .. LLM.model .. " ready" or "nvim: ollama pull failed")
+				end)
+			)
+		end)
+	)
+end
 
 ---------
 -- LSP --
@@ -204,7 +242,6 @@ local function php_version()
 	return out and out:match("PHP%s+([%d%.]+)") or nil
 end
 
--- Add a language: one entry here. A bare string means "no overrides".
 local servers = {
 	"cssls",
 	"html",
@@ -278,7 +315,6 @@ local servers = {
 	},
 	basedpyright = {},
 	ruff = {
-		-- basedpyright owns hover/definition; ruff owns lint + format only
 		on_attach = function(client)
 			client.server_capabilities.hoverProvider = false
 			client.server_capabilities.definitionProvider = false
@@ -286,7 +322,6 @@ local servers = {
 	},
 }
 
--- normalize `"name"` and `name = {...}` into one map
 local normalized = {}
 for k, v in pairs(servers) do
 	if type(k) == "number" then
@@ -304,7 +339,6 @@ servers.gdscript = {}
 
 require("mason").setup()
 
--- Formatters and the treesitter CLI aren't LSPs, so mason-lspconfig can't install them.
 local function ensure_tool(registry, name, on_ready)
 	local ok, pkg = pcall(registry.get_package, name)
 	if not ok then
@@ -325,8 +359,15 @@ end
 require("blink.cmp").setup({
 	keymap = { preset = "super-tab" },
 	sources = {
-		default = { "lsp", "snippets", "path", "buffer" },
+		default = { "lsp", "snippets", "path", "buffer", "minuet" },
 		providers = {
+			minuet = {
+				module = "minuet.blink",
+				name = "minuet",
+				async = true,
+				timeout_ms = 3000,
+				score_offset = 100,
+			},
 			snippets = {
 				opts = {
 					search_paths = { vim.fs.joinpath(config_dir, "snippets") },
@@ -367,9 +408,28 @@ require("blink.cmp").setup({
 			},
 		},
 	},
-	-- lua matcher => no Rust binary to download or build
 	fuzzy = { implementation = "lua", sorts = { "sort_text", "score", "label" } },
 	signature = { enabled = true },
+})
+
+require("minuet").setup({
+	provider = "openai_fim_compatible",
+	n_completions = 1,
+	context_window = LLM.context,
+	request_timeout = LLM.timeout, -- minuet's default 3 is short for a cold model load
+	throttle = LLM.throttle,
+	debounce = LLM.debounce,
+	add_single_line_entry = true,
+	notify = "error", -- don't warn about a cold/absent ollama on every keystroke
+	provider_options = {
+		openai_fim_compatible = {
+			name = "ollama",
+			end_point = LLM.endpoint,
+			model = LLM.model,
+			api_key = "TERM", -- ollama needs no key; minuet demands an env var name
+			optional = { max_tokens = LLM.max_tokens, top_p = 0.9 },
+		},
+	},
 })
 
 vim.lsp.config("*", { capabilities = require("blink.cmp").get_lsp_capabilities() })
@@ -377,16 +437,11 @@ for name, server in pairs(servers) do
 	vim.lsp.config(name, server)
 end
 
--- automatic_enable only enables servers Mason has actually installed, so a fresh clone
--- doesn't spew "server not installed" while they're still downloading. Pass the list
--- explicitly: left to itself it enables ANY installed mason package with an lspconfig
--- entry -- including formatters like stylua, which ships an `--lsp` mode.
 require("mason-lspconfig").setup({
 	ensure_installed = ensure_installed,
 	automatic_enable = ensure_installed,
 })
 
--- ...which means gdscript, the one server Mason doesn't manage, is ours to enable.
 vim.lsp.enable("gdscript")
 
 ----------------
@@ -406,7 +461,6 @@ local parsers = {
 	"lua",
 }
 
--- install() re-downloads unconditionally, so only ask for what's missing
 local function install_parsers()
 	local installed = require("nvim-treesitter.config").get_installed("parsers")
 	local missing = vim.tbl_filter(function(p)
@@ -423,8 +477,6 @@ vim.schedule(function()
 		for _, name in ipairs({ "stylua", "shfmt", "gdtoolkit" }) do
 			ensure_tool(registry, name)
 		end
-		-- nvim-treesitter (main) builds parsers by shelling out to the tree-sitter CLI,
-		-- so parsers can only be installed once that binary exists.
 		ensure_tool(registry, "tree-sitter-cli", install_parsers)
 	end)
 end)
@@ -439,7 +491,6 @@ conform.formatters.prettier = {
 	prepend_args = { "--plugin", "@prettier/plugin-php" },
 }
 
--- deno fmt in deno projects, prettier everywhere else
 local function js(bufnr)
 	local p = project(vim.api.nvim_buf_get_name(bufnr))
 	return (p and p.kind == "deno") and { "deno_fmt" } or { "prettier" }
@@ -463,8 +514,6 @@ conform.setup({
 		gdscript = { "gdformat" },
 		lua = { "stylua" },
 	},
-	-- The ONLY caller of format() on write. A broken file makes the formatter exit
-	-- non-zero, conform declines to apply, and the write still lands unformatted.
 	format_on_save = { timeout_ms = 1000, lsp_format = "fallback" },
 })
 
@@ -475,7 +524,6 @@ local function augroup(name)
 	return vim.api.nvim_create_augroup(name, { clear = true })
 end
 
--- Autosave only ever writes; the write is what triggers formatting.
 vim.api.nvim_create_autocmd({ "BufLeave", "FocusLost" }, {
 	desc = "Save on focus loss",
 	group = augroup("autosave"),
@@ -490,8 +538,6 @@ vim.api.nvim_create_autocmd({ "BufLeave", "FocusLost" }, {
 		if not vim.bo[b].modified then
 			return
 		end
-		-- Deferred: writing from inside the autocmd holds textlock, which stops conform
-		-- from applying its edits, and the file lands unformatted.
 		vim.schedule(function()
 			if vim.api.nvim_buf_is_valid(b) and vim.bo[b].modified then
 				vim.api.nvim_buf_call(b, function()
@@ -507,7 +553,6 @@ vim.api.nvim_create_autocmd("FileType", {
 	group = augroup("buffer-options"),
 	callback = function(ev)
 		pcall(vim.treesitter.start, ev.buf)
-		-- treesitter folds are worse than indent folds for python
 		if vim.bo[ev.buf].filetype == "python" then
 			vim.opt_local.foldmethod = "indent"
 			vim.opt_local.foldexpr = ""
@@ -552,12 +597,8 @@ local fzf = require("fzf-lua")
 fzf.setup({
 	file_icons = false,
 	git_icons = false,
-	-- The diff previewer resolves every action as you scroll past it; vtsls throws on
-	-- resolving a refactor outside its original selection, and fzf-lua warns loudly with
-	-- no way to silence it. Fuzzy list, no preview.
 	lsp = { code_actions = { previewer = false } },
 })
--- makes every vim.ui.select fuzzy, code actions included
 fzf.register_ui_select()
 require("nvim-autopairs").setup({})
 require("fidget").setup({})
