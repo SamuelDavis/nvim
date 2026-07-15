@@ -594,10 +594,17 @@ vim.api.nvim_create_autocmd("LspAttach", {
 -- SETUP --
 -----------
 local fzf = require("fzf-lua")
+local ignore = { ".git", ".jj", ".godot", "*.import", "*.svg", "*.png", "*.jpg", "*.wav", "*.mp3" }
+local excludes = vim.iter(ignore)
+	:map(function(g)
+		return "--exclude '" .. g .. "'"
+	end)
+	:join(" ")
 fzf.setup({
 	file_icons = false,
 	git_icons = false,
 	lsp = { code_actions = { previewer = false } },
+	files = { fd_opts = "--color=never --type f --type l " .. excludes },
 })
 fzf.register_ui_select()
 require("nvim-autopairs").setup({})
