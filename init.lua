@@ -206,6 +206,8 @@ local LLM = {
 	timeout = env("NVIM_LLM_TIMEOUT", 5),
 	throttle = env("NVIM_LLM_THROTTLE", 200),
 	debounce = env("NVIM_LLM_DEBOUNCE", 150),
+	temperature = env("NVIM_LLM_TEMPERATURE", 0.1),
+	top_p = env("NVIM_LLM_TOP_P", 0.9),
 }
 
 if vim.fn.executable("ollama") == 1 and LLM.endpoint:match("^http://localhost") then
@@ -414,18 +416,18 @@ require("minuet").setup({
 	provider = "openai_fim_compatible",
 	n_completions = 1,
 	context_window = LLM.context,
-	request_timeout = LLM.timeout, -- minuet's default 3 is short for a cold model load
+	request_timeout = LLM.timeout,
 	throttle = LLM.throttle,
 	debounce = LLM.debounce,
 	add_single_line_entry = true,
-	notify = "error", -- don't warn about a cold/absent ollama on every keystroke
+	notify = "error",
 	provider_options = {
 		openai_fim_compatible = {
 			name = "ollama",
 			end_point = LLM.endpoint,
 			model = LLM.model,
-			api_key = "TERM", -- ollama needs no key; minuet demands an env var name
-			optional = { max_tokens = LLM.max_tokens, top_p = 0.9 },
+			api_key = "TERM",
+			optional = { max_tokens = LLM.max_tokens, top_p = LLM.top_p, temperature = LLM.temperature },
 		},
 	},
 })
