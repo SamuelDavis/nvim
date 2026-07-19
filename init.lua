@@ -594,7 +594,23 @@ vim.api.nvim_create_autocmd("LspAttach", {
 -- SETUP --
 -----------
 local fzf = require("fzf-lua")
-local ignore = { ".git", ".jj", ".godot", "*.import", "*.svg", "*.png", "*.jpg", "*.wav", "*.mp3" }
+local ignore = {
+	-- package management
+	"vendor",
+	"node_modules",
+	-- version control
+	".git",
+	-- godot
+	".godot",
+	"*.import",
+	"*.uid",
+	-- media
+	"*.svg",
+	"*.png",
+	"*.jpg",
+	"*.wav",
+	"*.mp3",
+}
 local excludes = vim.iter(ignore)
 	:map(function(g)
 		return "--exclude '" .. g .. "'"
