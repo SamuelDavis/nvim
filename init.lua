@@ -169,8 +169,6 @@ vim.env.PATH = vim.fs.joinpath(vim.fn.stdpath("data"), "site/pack/core/opt/fzf/b
 ---------------
 local config_dir = vim.fn.stdpath("config")
 
--- prettier + @prettier/plugin-php are pinned in this repo's package.json, so the
--- PHP plugin resolves and versions can't drift between machines.
 if vim.fn.isdirectory(config_dir .. "/node_modules") == 0 and vim.fn.executable("npm") == 1 then
 	local cmd = vim.fn.filereadable(config_dir .. "/package-lock.json") == 1 and "ci" or "install"
 	vim.notify("nvim: installing prettier…")
@@ -488,7 +486,11 @@ local conform = require("conform")
 
 conform.formatters.prettier = {
 	command = vim.fs.joinpath(config_dir, "node_modules/.bin/prettier"),
-	prepend_args = { "--plugin", "@prettier/plugin-php" },
+	prepend_args = function(_, ctx)
+		return vim.bo[ctx.buf].filetype == "php"
+				and { "--plugin", vim.fs.joinpath(config_dir, "node_modules/@prettier/plugin-php") }
+			or {}
+	end,
 }
 
 local function js(bufnr)
