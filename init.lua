@@ -106,6 +106,12 @@ dmap("n", function()
 	vim.diagnostic.jump({ count = 1 })
 end, "[N]ext")
 
+-- tsserver only diagnoses open buffers; this checks the whole project into the quickfix list
+vim.g.tsc_makeprg = "npx tsc -b"
+dmap("c", function()
+	vim.cmd("compiler tsc | silent make! | cwindow")
+end, "[C]heck project (tsc)")
+
 rmap("s", ":s/\\%V", "[S]election", { mode = "v" })
 rmap("l", ":s/", "[L]ine", { mode = "v" })
 
@@ -262,6 +268,8 @@ local servers = {
 		end,
 	},
 	vtsls = {
+		-- vtsls bundles its own tsc; use the project's instead
+		settings = { vtsls = { autoUseWorkspaceTsdk = true } },
 		root_dir = function(bufnr, on_dir)
 			local p = project(vim.api.nvim_buf_get_name(bufnr))
 			if p and p.kind == "node" then
