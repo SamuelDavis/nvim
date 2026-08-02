@@ -2,5 +2,9 @@
   "export default function": {
     "prefix": "defunc",
     "body": "export default function ${1:name}(${2}) {\n\t$0\n}"
+  },
+  "function (): void": {
+    "prefix": "vfunc",
+    "body": "function ${1:name}(${2}): void {\n\t$0\n}"
   }
 }

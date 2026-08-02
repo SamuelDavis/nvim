@@ -416,7 +416,7 @@ require("blink.cmp").setup({
 			},
 		},
 	},
-	fuzzy = { implementation = "lua", sorts = { "sort_text", "score", "label" } },
+	fuzzy = { implementation = "lua", sorts = { "score", "sort_text", "label" } },
 	signature = { enabled = true },
 })
 
