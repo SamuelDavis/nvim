@@ -620,10 +620,18 @@ vim.api.nvim_create_autocmd("FocusGained", {
 			return
 		end
 		local buf = vim.api.nvim_get_current_buf()
-		for _, client in ipairs(vim.lsp.get_clients({ bufnr = buf, name = "gdscript" })) do
-			vim.lsp.buf_detach_client(buf, client.id)
-			vim.lsp.buf_attach_client(buf, client.id)
-		end
+		-- Godot needs a moment after losing focus to push its scene-tree
+		-- changes to the embedded LSP server; reattaching immediately can
+		-- race ahead of that update.
+		vim.defer_fn(function()
+			if not vim.api.nvim_buf_is_valid(buf) then
+				return
+			end
+			for _, client in ipairs(vim.lsp.get_clients({ bufnr = buf, name = "gdscript" })) do
+				vim.lsp.buf_detach_client(buf, client.id)
+				vim.lsp.buf_attach_client(buf, client.id)
+			end
+		end, 500)
 	end,
 })
 
