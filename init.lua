@@ -612,6 +612,21 @@ vim.api.nvim_create_autocmd("LspAttach", {
 	end,
 })
 
+vim.api.nvim_create_autocmd("FocusGained", {
+	desc = "Resync gdscript LSP (Godot editor may have changed the scene tree)",
+	group = augroup("gdscript-scene-resync"),
+	callback = function()
+		if vim.bo.filetype ~= "gdscript" then
+			return
+		end
+		local buf = vim.api.nvim_get_current_buf()
+		for _, client in ipairs(vim.lsp.get_clients({ bufnr = buf, name = "gdscript" })) do
+			vim.lsp.buf_detach_client(buf, client.id)
+			vim.lsp.buf_attach_client(buf, client.id)
+		end
+	end,
+})
+
 -----------
 -- SETUP --
 -----------
