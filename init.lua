@@ -560,6 +560,16 @@ vim.api.nvim_create_autocmd({ "BufLeave", "FocusLost" }, {
 	end,
 })
 
+vim.api.nvim_create_autocmd("InsertLeave", {
+	desc = "Stop lingering snippet session (fixes stuck tabstop highlight)",
+	group = augroup("snippet-stop-on-leave"),
+	callback = function()
+		if vim.snippet.active() then
+			vim.snippet.stop()
+		end
+	end,
+})
+
 vim.api.nvim_create_autocmd("FileType", {
 	desc = "Highlighting and folds",
 	group = augroup("buffer-options"),
