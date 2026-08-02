@@ -254,7 +254,13 @@ local servers = {
 	"jsonls",
 	"bashls",
 	"tailwindcss",
-	"emmet_language_server",
+	emmet_language_server = {
+		-- prevent emmet default autocomplete `for` and as `htmlFor`
+		init_options = {
+			syntaxProfiles = { jsx = { ["markup.attributes"] = { ["for"] = "for", class = "class" } } },
+			extensionsPath = { vim.fs.joinpath(config_dir, "emmet") },
+		},
+	},
 	lua_ls = {
 		settings = { Lua = { diagnostics = { globals = { "vim" }, disable = { "missing-fields" } } } },
 	},
