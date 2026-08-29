@@ -279,7 +279,7 @@ local function config_telescope()
 		-- godot
 		{ "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" },
 		-- vendor
-		{ "package%-lock.json", "node_modules/", "vendor/" },
+		{ "package%-lock.json", "node_modules/", "vendor/", ".venv" },
 		-- build
 		{ "dist/" },
 	})
