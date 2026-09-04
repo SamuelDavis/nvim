@@ -649,6 +649,7 @@ local ignore = {
 	-- package management
 	"vendor",
 	"node_modules",
+	"dist/",
 	-- version control
 	".git",
 	-- godot
@@ -656,6 +657,7 @@ local ignore = {
 	"*.import",
 	"*.uid",
 	-- media
+	"*.webp",
 	"*.svg",
 	"*.png",
 	"*.jpg",
@@ -667,11 +669,15 @@ local excludes = vim.iter(ignore)
 		return "--exclude '" .. g .. "'"
 	end)
 	:join(" ")
+local actions = require("fzf-lua.actions")
 fzf.setup({
 	file_icons = false,
 	git_icons = false,
 	lsp = { code_actions = { previewer = false } },
-	files = { fd_opts = "--color=never --type f --type l " .. excludes },
+	files = {
+		fd_opts = "--color=never --type f --type l " .. excludes,
+		actions = { ["default"] = actions.file_tabedit },
+	},
 })
 fzf.register_ui_select()
 require("nvim-autopairs").setup({})
