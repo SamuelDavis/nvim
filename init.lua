@@ -275,7 +275,12 @@ local servers = {
 	},
 	vtsls = {
 		-- vtsls bundles its own tsc; use the project's instead
-		settings = { vtsls = { autoUseWorkspaceTsdk = true } },
+		settings = {
+			vtsls = { autoUseWorkspaceTsdk = true },
+			-- omit extensions from auto-imports/rename updates where possible
+			typescript = { preferences = { importModuleSpecifierEnding = "minimal" } },
+			javascript = { preferences = { importModuleSpecifierEnding = "minimal" } },
+		},
 		root_dir = function(bufnr, on_dir)
 			local p = project(vim.api.nvim_buf_get_name(bufnr))
 			if p and p.kind == "node" then
@@ -373,7 +378,14 @@ end
 require("blink.cmp").setup({
 	keymap = { preset = "super-tab" },
 	sources = {
-		default = { "lsp", "snippets", "path", "buffer", "minuet" },
+		default = function()
+			-- the path source suggests "./file.ts"; vtsls omits the extension
+			local js = { typescript = true, typescriptreact = true, javascript = true, javascriptreact = true }
+			if js[vim.bo.filetype] then
+				return { "lsp", "snippets", "buffer", "minuet" }
+			end
+			return { "lsp", "snippets", "path", "buffer", "minuet" }
+		end,
 		providers = {
 			minuet = {
 				module = "minuet.blink",
@@ -647,13 +659,13 @@ vim.api.nvim_create_autocmd("FocusGained", {
 local fzf = require("fzf-lua")
 local ignore = {
 	-- package management
-	"vendor",
-	"node_modules",
+	"vendor/",
+	"node_modules/",
 	"dist/",
 	-- version control
-	".git",
+	".git/",
 	-- godot
-	".godot",
+	".godot/",
 	"*.import",
 	"*.uid",
 	-- media
@@ -663,6 +675,8 @@ local ignore = {
 	"*.jpg",
 	"*.wav",
 	"*.mp3",
+	-- other
+	".claude/",
 }
 local excludes = vim.iter(ignore)
 	:map(function(g)
