@@ -690,7 +690,17 @@ fzf.setup({
 	lsp = { code_actions = { previewer = false } },
 	files = {
 		fd_opts = "--color=never --type f --type l " .. excludes,
-		actions = { ["default"] = actions.file_tabedit },
+		actions = {
+			["default"] = function(selected, opts)
+				for _, sel in ipairs(selected) do
+					local entry = fzf.path.entry_to_file(sel, opts)
+					vim.cmd("tab drop " .. vim.fn.fnameescape(entry.path))
+					if entry.line and entry.line > 0 then
+						vim.api.nvim_win_set_cursor(0, { entry.line, math.max((entry.col or 1) - 1, 0) })
+					end
+				end
+			end,
+		},
 	},
 })
 fzf.register_ui_select()
