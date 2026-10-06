@@ -266,6 +266,12 @@ local formatters = {
 local ensure_installed = vim.iter({ vim.tbl_keys(servers), formatters }):flatten():totable()
 servers["gdscript"] = {}
 
+-- prettier can't parse PHP without @prettier/plugin-php. It isn't a mason
+-- package, so it's installed into mason's prettier dir and re-installed on
+-- startup if missing (mason wipes node_modules on prettier reinstall/update).
+local mason_prettier_dir = vim.fn.stdpath("data") .. "/mason/packages/prettier"
+local php_prettier_plugin = mason_prettier_dir .. "/node_modules/@prettier/plugin-php"
+
 local function config_telescope()
 	local telescope = require("telescope")
 
@@ -505,6 +511,17 @@ require("lazy").setup({
 				php = { "prettier" },
 				gdscript = { "gdformat" },
 			},
+			formatters = {
+				-- Load @prettier/plugin-php only for PHP buffers (see above).
+				prettier = {
+					prepend_args = function(_, ctx)
+						if vim.bo[ctx.buf].filetype ~= "php" then
+							return {}
+						end
+						return { "--plugin=" .. php_prettier_plugin .. "/src/index.mjs" }
+					end,
+				},
+			},
 		},
 	},
 	{
@@ -524,6 +541,43 @@ require("lazy").setup({
 --------------
 -- AUTOCMDS --
 --------------
+local function ensure_php_prettier_plugin()
+	-- Nothing to do until mason has installed prettier, or if already present.
+	if vim.fn.isdirectory(mason_prettier_dir) == 0 then
+		return
+	end
+	if vim.fn.isdirectory(php_prettier_plugin) == 1 then
+		return
+	end
+	if vim.fn.executable("npm") == 0 then
+		vim.notify("@prettier/plugin-php missing and npm not found; PHP formatting will fail", vim.log.levels.WARN)
+		return
+	end
+	vim.notify("Installing @prettier/plugin-php...", vim.log.levels.INFO)
+	vim.system({ "npm", "install", "@prettier/plugin-php" }, { cwd = mason_prettier_dir }, function(res)
+		vim.schedule(function()
+			if res.code == 0 then
+				vim.notify("Installed @prettier/plugin-php", vim.log.levels.INFO)
+			else
+				vim.notify("Failed to install @prettier/plugin-php:\n" .. (res.stderr or ""), vim.log.levels.ERROR)
+			end
+		end)
+	end)
+end
+
+-- Check on startup (plugin wiped) and after mason installs prettier (fresh machine).
+vim.api.nvim_create_autocmd("VimEnter", {
+	desc = "Ensure @prettier/plugin-php",
+	group = vim.api.nvim_create_augroup("PhpPrettierPlugin", { clear = true }),
+	callback = ensure_php_prettier_plugin,
+})
+vim.api.nvim_create_autocmd("User", {
+	desc = "Ensure @prettier/plugin-php after mason tool install",
+	pattern = "MasonToolsUpdateCompleted",
+	group = vim.api.nvim_create_augroup("PhpPrettierPluginMason", { clear = true }),
+	callback = ensure_php_prettier_plugin,
+})
+
 vim.api.nvim_create_autocmd({ "BufWritePre", "FocusLost", "BufLeave" }, {
 	desc = "Format on save",
 	pattern = "*",
