@@ -1,12 +1,11 @@
-local args = vim.fn.argv(0)
-if arg ~= "" then
-	local path = vim.fn.fnamemodify(args, ":p")
+local start_arg = vim.fn.argv(0)
+if start_arg ~= "" then
+	local path = vim.fn.fnamemodify(start_arg, ":p")
 	if vim.fn.isdirectory(path) == 0 then
-		path = vim.fn.fnamemodify(args, ":h")
+		path = vim.fn.fnamemodify(path, ":h")
 	end
 	if vim.fn.isdirectory(path) == 1 then
 		vim.cmd.cd(path)
-		vim.fn.remove(vim.v.argv, 1)
 	end
 end
 
@@ -38,8 +37,8 @@ vim.opt.colorcolumn = "80"
 vim.opt.inccommand = "split"
 -- code folds
 vim.opt.foldenable = true
-vim.opt.foldmethod = "indent"
-vim.opt.foldexpr = ""
+vim.opt.foldmethod = "expr"
+vim.opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 vim.opt.foldlevel = 9999
 -- indentation
 vim.opt.tabstop = 4
@@ -56,43 +55,41 @@ vim.o.confirm = true
 vim.schedule(function()
 	vim.opt.clipboard = "unnamedplus"
 end)
--- less destructive undos
-local undopoints = { " ", ",", ".", "!", "?", ";", ":", "(", ")", "[", "]", "{", "}" }
+-- less destructive undos (brackets omitted: nvim-autopairs owns them)
+local undopoints = { " ", ",", ".", "!", "?", ";", ":" }
 for _, ch in ipairs(undopoints) do
-	vim.keymap.set("i", ch, ch .. "<C-g>u", { noremap = true })
+	vim.keymap.set("i", ch, ch .. "<C-g>u")
 end
 -- buffer metadata
-vim.o.statusline = "%f"
+vim.o.statusline = "%f %m%r%=%l:%c"
 
 -------------
 -- KEYMAPS --
 -------------
-vim.keymap.set("n", "j", "gj", { noremap = true })
-vim.keymap.set("n", "k", "gk", { noremap = true })
+vim.keymap.set("n", "j", "gj")
+vim.keymap.set("n", "k", "gk")
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
 vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 
-local function map(key, fn, desc, mode)
-	vim.keymap.set(mode or "n", "<leader>" .. key, fn, { desc = desc })
+local function map(key, fn, desc, mode, buffer)
+	vim.keymap.set(mode or "n", "<leader>" .. key, fn, { desc = desc, buffer = buffer })
 end
 
 local prefixes = {}
 local function keymap_prefix(prefix_key, prefix_desc)
 	prefixes[prefix_key] = prefix_desc
-	return function(key, fn, desc, mode)
-		map(prefix_key .. key, fn, prefix_desc .. " " .. desc, mode)
+	return function(key, fn, desc, mode, buffer)
+		map(prefix_key .. key, fn, prefix_desc .. " " .. desc, mode, buffer)
 	end
 end
-vim.api.nvim_create_autocmd("VimEnter", {
-	callback = function()
-		local whichkey = require("which-key")
-		for key, description in pairs(prefixes) do
-			whichkey.add({
-				{ "<leader>" .. key, group = description },
-			})
-		end
-	end,
-})
+
+local function which_key_groups()
+	local groups = {}
+	for key, description in pairs(prefixes) do
+		table.insert(groups, { "<leader>" .. key, group = description })
+	end
+	return groups
+end
 
 local dmap = keymap_prefix("d", "[D]iagnostic")
 local fmap = keymap_prefix("f", "[F]ind")
@@ -101,9 +98,12 @@ local cmap = keymap_prefix("c", "[C]ode")
 local hmap = keymap_prefix("h", "[H]over")
 
 dmap("o", vim.diagnostic.open_float, "[O]pen")
-dmap("p", vim.diagnostic.get_prev, "[P]rev")
-dmap("n", vim.diagnostic.get_next, "[N]ext")
-dmap("l", vim.diagnostic.setloclist, "[L]ist")
+dmap("p", function()
+	vim.diagnostic.jump({ count = -1, float = true })
+end, "[P]rev")
+dmap("n", function()
+	vim.diagnostic.jump({ count = 1, float = true })
+end, "[N]ext")
 
 rmap("s", ":s/\\%V", "[S]election", "v")
 rmap("l", ":s/", "[L]ine", "v")
@@ -158,11 +158,19 @@ local function ping_ollama(host, port, timeout_ms)
 	return ok
 end
 local model = os.getenv("NVIM_OLLAMA_MODEL")
-local ollama_available = ping_ollama() and model
+local ollama_available = model ~= nil and ping_ollama()
 
 -------------
 -- PLUGINS --
 -------------
+local function detect_php_version()
+	local env_version = os.getenv("PHP_VERSION")
+	if env_version or vim.fn.executable("php") == 0 then
+		return env_version
+	end
+	return vim.fn.systemlist({ "php", "--version" })[1]:match("PHP%s+([%d%.]+)")
+end
+
 local servers = {
 	-- servers
 	lua_ls = {
@@ -197,12 +205,11 @@ local servers = {
 	"tailwindcss",
 	"pyright",
 	intelephense = {
+		before_init = function(_, config)
+			config.settings.intelephense.environment = { phpVersion = detect_php_version() }
+		end,
 		settings = {
 			intelephense = {
-				environment = {
-					phpVersion = os.getenv("PHP_VERSION")
-						or vim.fn.systemlist("php --version")[1]:match("PHP%s+([%d%.]+)"),
-				},
 				stubs = {
 					"apache",
 					"bcmath",
@@ -244,7 +251,7 @@ local servers = {
 		},
 	},
 	"bashls",
-	"emmet-language-server",
+	"emmet_language_server",
 }
 local _servers = {}
 for k, v in pairs(servers) do
@@ -255,37 +262,34 @@ for k, v in pairs(servers) do
 	end
 end
 servers = _servers
-local formatters = {
+local tools = {
+	-- formatters
 	"stylua",
-	"prettier",
 	"prettierd",
 	"isort",
 	"black",
 	"gdtoolkit",
+	"pint",
+	-- builds nvim-treesitter parsers
+	"tree-sitter-cli",
 }
-local ensure_installed = vim.iter({ vim.tbl_keys(servers), formatters }):flatten():totable()
+local ensure_installed = vim.iter({ vim.tbl_keys(servers), tools }):flatten():totable()
 servers["gdscript"] = {}
-
--- prettier can't parse PHP without @prettier/plugin-php. It isn't a mason
--- package, so it's installed into mason's prettier dir and re-installed on
--- startup if missing (mason wipes node_modules on prettier reinstall/update).
-local mason_prettier_dir = vim.fn.stdpath("data") .. "/mason/packages/prettier"
-local php_prettier_plugin = mason_prettier_dir .. "/node_modules/@prettier/plugin-php"
 
 local function config_telescope()
 	local telescope = require("telescope")
 
 	local file_ignore_patterns = vim.iter({
 		--misc
-		{ "%.ttf", ".git/", "*.lock" },
+		{ "%.ttf$", "%.git/", "%.lock$" },
 		-- audio
-		{ "%.mp3", "%.wav" },
+		{ "%.mp3$", "%.wav$" },
 		-- images
-		{ "%.png", "%.swf", "%.svg" },
+		{ "%.png$", "%.swf$", "%.svg$" },
 		-- godot
-		{ "%.uid", "%.import", "%.db", "%.tscn", "%.tres", "%.godot" },
+		{ "%.uid$", "%.import$", "%.db$", "%.tscn$", "%.tres$", "%.godot$" },
 		-- vendor
-		{ "package%-lock.json", "node_modules/", "vendor/", ".venv" },
+		{ "package%-lock%.json$", "node_modules/", "vendor/", "%.venv/" },
 		-- build
 		{ "dist/" },
 	})
@@ -301,10 +305,23 @@ local function config_telescope()
 	pcall(telescope.load_extension, "fzf")
 	pcall(telescope.load_extension, "ui-select")
 
+	-- Skip heavy dirs at the finder so they're never walked, not just filtered.
+	local find_command = {
+		"rg",
+		"--files",
+		"--hidden",
+		"--no-ignore",
+		"--glob=!**/.git/*",
+		"--glob=!**/node_modules/*",
+		"--glob=!**/vendor/*",
+		"--glob=!**/.venv/*",
+		"--glob=!**/dist/*",
+	}
+
 	local builtin = require("telescope.builtin")
 	dmap("l", builtin.diagnostics, "[L]ist")
 	fmap("f", function()
-		builtin.find_files({ hidden = true, no_ignore = true })
+		builtin.find_files({ find_command = find_command })
 	end, "[F]iles")
 	fmap("b", builtin.buffers, "[B]uffers")
 	fmap("n", builtin.resume, "[N]ext")
@@ -391,10 +408,45 @@ local function config_blink()
 			},
 		},
 		fuzzy = {
-			implementation = "lua",
+			implementation = "prefer_rust_with_warning",
 			sorts = { "sort_text", "score", "label" },
 		},
 		signature = { enabled = true },
+	})
+end
+
+local function config_treesitter()
+	local treesitter = require("nvim-treesitter")
+	local indent_disabled = { gdscript = true }
+	local available_parsers = treesitter.get_available()
+
+	local function attach(buf, lang)
+		if not vim.api.nvim_buf_is_valid(buf) or not pcall(vim.treesitter.start, buf, lang) then
+			return
+		end
+		if not indent_disabled[lang] then
+			vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+		end
+	end
+
+	vim.api.nvim_create_autocmd("FileType", {
+		desc = "Start treesitter, installing parser if missing",
+		group = vim.api.nvim_create_augroup("Treesitter", { clear = true }),
+		callback = function(ev)
+			local lang = vim.treesitter.language.get_lang(ev.match)
+			if not lang then
+				return
+			end
+			if vim.treesitter.language.add(lang) then
+				attach(ev.buf, lang)
+				return
+			end
+			if vim.fn.executable("tree-sitter") == 1 and vim.tbl_contains(available_parsers, lang) then
+				treesitter.install(lang):await(vim.schedule_wrap(function()
+					attach(ev.buf, lang)
+				end))
+			end
+		end,
 	})
 end
 
@@ -414,6 +466,7 @@ require("lazy").setup({
 	{
 		"folke/which-key.nvim",
 		opts = {
+			spec = which_key_groups(),
 			plugins = {
 				presets = {
 					motions = false,
@@ -440,32 +493,30 @@ require("lazy").setup({
 				end,
 			},
 		},
-		opts = {},
 		config = config_telescope,
 	},
 	{
 		"neovim/nvim-lspconfig",
 		dependencies = {
 			{ "mason-org/mason.nvim", opts = {} },
-			{ "mason-org/mason-lspconfig.nvim", opts = {} },
+			{ "mason-org/mason-lspconfig.nvim", opts = { automatic_enable = false } },
 			{
 				"WhoIsSethDaniel/mason-tool-installer.nvim",
 				opts = { ensure_installed = ensure_installed },
 			},
 			{ "j-hui/fidget.nvim", opts = {} },
-			{ "saghen/blink.cmp", opts = {} },
+			"saghen/blink.cmp",
 		},
-		opts = {},
 		config = config_lspconfig,
 	},
 	{
 		"saghen/blink.cmp",
-		dependencies = { "saghen/blink.lib" }, -- ollama_available and { "milanglacier/minuet-ai.nvim" } or {},
+		version = "1.*",
 		config = config_blink,
 	},
 	{
 		"milanglacier/minuet-ai.nvim",
-		enabled = model and ollama_available,
+		enabled = ollama_available,
 		dependencies = { "nvim-lua/plenary.nvim" },
 		opts = {
 			provider = "openai_fim_compatible",
@@ -487,17 +538,14 @@ require("lazy").setup({
 	},
 	{
 		"nvim-treesitter/nvim-treesitter",
+		lazy = false,
 		build = ":TSUpdate",
-		opts = {
-			auto_install = true,
-			highlight = { enable = true },
-			indent = { enable = true, disable = { "gdscript" } },
-		},
+		config = config_treesitter,
 	},
 	{
 		"stevearc/conform.nvim",
+		cmd = { "ConformInfo" },
 		opts = {
-			cmd = { "ConformInfo" },
 			formatters_by_ft = {
 				lua = { "stylua" },
 				json = { "prettierd" },
@@ -507,20 +555,9 @@ require("lazy").setup({
 				javascriptreact = { "prettierd" },
 				typescript = { "prettierd" },
 				typescriptreact = { "prettierd" },
-				python = { "black", "isort" },
-				php = { "prettier" },
+				python = { "isort", "black" },
+				php = { "pint" },
 				gdscript = { "gdformat" },
-			},
-			formatters = {
-				-- Load @prettier/plugin-php only for PHP buffers (see above).
-				prettier = {
-					prepend_args = function(_, ctx)
-						if vim.bo[ctx.buf].filetype ~= "php" then
-							return {}
-						end
-						return { "--plugin=" .. php_prettier_plugin .. "/src/index.mjs" }
-					end,
-				},
 			},
 		},
 	},
@@ -528,7 +565,6 @@ require("lazy").setup({
 		"rmagatti/goto-preview",
 		dependencies = { "rmagatti/logger.nvim" },
 		event = "BufEnter",
-		opts = {},
 		config = function()
 			local preview = require("goto-preview")
 			preview.setup()
@@ -541,97 +577,61 @@ require("lazy").setup({
 --------------
 -- AUTOCMDS --
 --------------
-local function ensure_php_prettier_plugin()
-	-- Nothing to do until mason has installed prettier, or if already present.
-	if vim.fn.isdirectory(mason_prettier_dir) == 0 then
-		return
-	end
-	if vim.fn.isdirectory(php_prettier_plugin) == 1 then
-		return
-	end
-	if vim.fn.executable("npm") == 0 then
-		vim.notify("@prettier/plugin-php missing and npm not found; PHP formatting will fail", vim.log.levels.WARN)
-		return
-	end
-	vim.notify("Installing @prettier/plugin-php...", vim.log.levels.INFO)
-	vim.system({ "npm", "install", "@prettier/plugin-php" }, { cwd = mason_prettier_dir }, function(res)
-		vim.schedule(function()
-			if res.code == 0 then
-				vim.notify("Installed @prettier/plugin-php", vim.log.levels.INFO)
-			else
-				vim.notify("Failed to install @prettier/plugin-php:\n" .. (res.stderr or ""), vim.log.levels.ERROR)
-			end
-		end)
-	end)
+local function is_editable_file(buf)
+	return vim.api.nvim_buf_is_valid(buf)
+		and vim.bo[buf].buftype == ""
+		and not vim.bo[buf].readonly
+		and vim.api.nvim_buf_get_name(buf) ~= ""
 end
 
--- Check on startup (plugin wiped) and after mason installs prettier (fresh machine).
-vim.api.nvim_create_autocmd("VimEnter", {
-	desc = "Ensure @prettier/plugin-php",
-	group = vim.api.nvim_create_augroup("PhpPrettierPlugin", { clear = true }),
-	callback = ensure_php_prettier_plugin,
-})
-vim.api.nvim_create_autocmd("User", {
-	desc = "Ensure @prettier/plugin-php after mason tool install",
-	pattern = "MasonToolsUpdateCompleted",
-	group = vim.api.nvim_create_augroup("PhpPrettierPluginMason", { clear = true }),
-	callback = ensure_php_prettier_plugin,
-})
-
-vim.api.nvim_create_autocmd({ "BufWritePre", "FocusLost", "BufLeave" }, {
+local autoformat_group = vim.api.nvim_create_augroup("Autoformat", { clear = true })
+vim.api.nvim_create_autocmd("BufWritePre", {
 	desc = "Format on save",
-	pattern = "*",
-	group = vim.api.nvim_create_augroup("Autoformat", { clear = true }),
+	group = autoformat_group,
 	callback = function(ev)
-		if
-			vim.api.nvim_buf_is_valid(ev.buf)
-			and vim.bo[ev.buf].buftype == ""
-			and vim.bo[ev.buf].modified
-			and not vim.bo[ev.buf].readonly
-		then
-			require("conform").format({
-				buf = ev.buf,
-				lsp_format = "fallback",
-			}, function()
-				vim.cmd("silent! write")
+		if is_editable_file(ev.buf) then
+			require("conform").format({ bufnr = ev.buf, timeout_ms = 1000, lsp_format = "fallback" })
+		end
+	end,
+})
+vim.api.nvim_create_autocmd({ "FocusLost", "BufLeave" }, {
+	desc = "Autosave",
+	group = autoformat_group,
+	nested = true,
+	callback = function(ev)
+		if is_editable_file(ev.buf) and vim.bo[ev.buf].modified then
+			vim.api.nvim_buf_call(ev.buf, function()
+				vim.cmd("silent! update")
 			end)
 		end
 	end,
 })
 
-vim.api.nvim_create_autocmd({ "FileType" }, {
-	desc = "Fix Code Folding",
-	pattern = "*",
-	group = vim.api.nvim_create_augroup("Set Buffer Options", { clear = true }),
-	callback = function(ev)
-		local filetype = vim.bo[ev.buf].filetype
-		if filetype == "python" then
-			vim.opt_local.foldmethod = "indent"
-			vim.opt_local.foldexpr = ""
-		else
-			vim.opt_local.foldmethod = "expr"
-			vim.opt_local.foldexpr = "v:lua.vim.treesitter.foldexpr()"
-		end
+vim.api.nvim_create_autocmd("FileType", {
+	desc = "Indent-based folds for python",
+	pattern = "python",
+	group = vim.api.nvim_create_augroup("PythonFolds", { clear = true }),
+	callback = function()
+		vim.opt_local.foldmethod = "indent"
 	end,
 })
 
 vim.api.nvim_create_autocmd("LspAttach", {
 	group = vim.api.nvim_create_augroup("lsp-attach", { clear = true }),
 	callback = function(event)
-		vim.diagnostic.config({})
-
+		local buf = event.buf
 		local builtin = require("telescope.builtin")
-		fmap("d", builtin.lsp_definitions, "[D]efinition")
-		fmap("r", builtin.lsp_references, "[R]eferences")
-		fmap("I", builtin.lsp_implementations, "[I]mplementations")
-		fmap("T", builtin.lsp_type_definitions, "[T]ype definitions")
-		fmap("s", builtin.lsp_dynamic_workspace_symbols, "[S]ymbols (Workspace)")
-		fmap("S", builtin.lsp_document_symbols, "[S]ymbols (Document)")
-		fmap("D", vim.lsp.buf.declaration, "[D]eclaration")
+		fmap("d", builtin.lsp_definitions, "[D]efinition", "n", buf)
+		fmap("r", builtin.lsp_references, "[R]eferences", "n", buf)
+		fmap("I", builtin.lsp_implementations, "[I]mplementations", "n", buf)
+		fmap("T", builtin.lsp_type_definitions, "[T]ype definitions", "n", buf)
+		fmap("s", builtin.lsp_dynamic_workspace_symbols, "[S]ymbols (Workspace)", "n", buf)
+		fmap("S", builtin.lsp_document_symbols, "[S]ymbols (Document)", "n", buf)
+		fmap("D", vim.lsp.buf.declaration, "[D]eclaration", "n", buf)
 
-		rmap("n", vim.lsp.buf.rename, "[N]ame")
-		cmap("a", vim.lsp.buf.code_action, "[A]ction", { "n", "x" })
-		hmap("d", vim.lsp.buf.hover, "[D]ocumentation")
+		rmap("n", vim.lsp.buf.rename, "[N]ame", "n", buf)
+		cmap("a", vim.lsp.buf.code_action, "[A]ction", { "n", "x" }, buf)
+		hmap("d", vim.lsp.buf.hover, "[D]ocumentation", "n", buf)
 
 		local client = vim.lsp.get_client_by_id(event.data.client_id)
 
@@ -641,13 +641,13 @@ vim.api.nvim_create_autocmd("LspAttach", {
 				function()
 					local highlight_augroup = vim.api.nvim_create_augroup("lsp-highlight", { clear = false })
 					vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
-						buffer = event.buf,
+						buffer = buf,
 						group = highlight_augroup,
 						callback = vim.lsp.buf.document_highlight,
 					})
 
 					vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-						buffer = event.buf,
+						buffer = buf,
 						group = highlight_augroup,
 						callback = vim.lsp.buf.clear_references,
 					})
@@ -668,10 +668,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
 				vim.lsp.protocol.Methods.textDocument_inlayHint,
 				function()
 					map("th", function()
-						vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({
-							bufnr = event.buf,
-						}))
-					end, "[T]oggle Inlay [H]ints")
+						local filter = { bufnr = buf }
+						vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled(filter), filter)
+					end, "[T]oggle Inlay [H]ints", "n", buf)
 				end,
 			},
 		}
