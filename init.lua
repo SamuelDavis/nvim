@@ -1,11 +1,12 @@
+-- project dir: enclosing git repo, else the opened directory, else the opened file's directory
+-- (nvim.sh mounts by the same rule)
 local start_arg = vim.fn.argv(0)
 if start_arg ~= "" then
 	local path = vim.fn.fnamemodify(start_arg, ":p")
-	if vim.fn.isdirectory(path) == 0 then
-		path = vim.fn.fnamemodify(path, ":h")
-	end
-	if vim.fn.isdirectory(path) == 1 then
-		vim.cmd.cd(path)
+	local dir = vim.fn.isdirectory(path) == 1 and path or vim.fn.fnamemodify(path, ":h")
+	local project_dir = vim.fs.root(dir, ".git") or dir
+	if vim.fn.isdirectory(project_dir) == 1 then
+		vim.cmd.cd(project_dir)
 	end
 end
 
@@ -51,6 +52,32 @@ vim.opt.smartcase = true
 vim.cmd.colorscheme("slate")
 -- prompt before clobbering buffer
 vim.o.confirm = true
+-- container (see nvim.sh)
+if vim.env.NVIM_CONTAINER then
+	-- no host clipboard access; copy via terminal escape, paste via terminal
+	local osc52 = require("vim.ui.clipboard.osc52")
+	local function paste_unnamed()
+		return { vim.fn.split(vim.fn.getreg(""), "\n"), vim.fn.getregtype("") }
+	end
+	vim.g.clipboard = {
+		name = "OSC 52",
+		copy = { ["+"] = osc52.copy("+"), ["*"] = osc52.copy("*") },
+		paste = { ["+"] = paste_unnamed, ["*"] = paste_unnamed },
+	}
+	-- suspending freezes the container without returning control to the host shell
+	vim.keymap.set({ "n", "v" }, "<C-z>", "<Nop>")
+	vim.api.nvim_create_user_command("SuspendDisabled", function()
+		vim.notify("suspend is disabled inside the container", vim.log.levels.WARN)
+	end, { bang = true, nargs = "*" })
+	for _, abbreviation in ipairs({ "sus", "susp", "suspe", "suspen", "suspend", "st", "sto", "stop" }) do
+		vim.keymap.set("ca", abbreviation, function()
+			local is_whole_command = vim.fn.getcmdtype() == ":" and vim.fn.getcmdline() == abbreviation
+			return is_whole_command and "SuspendDisabled" or abbreviation
+		end, { expr = true })
+	end
+	-- single-file bind mounts can't be replaced by rename-on-write
+	vim.opt.backupcopy = "yes"
+end
 -- clipboard
 vim.schedule(function()
 	vim.opt.clipboard = "unnamedplus"
@@ -116,8 +143,15 @@ end, "[F]ormat")
 -- LLM --
 ---------
 local uv = vim.uv or vim.loop
+local function resolve_ipv4(hostname)
+	local addresses = uv.getaddrinfo(hostname, nil, { family = "inet" })
+	return addresses and addresses[1] and addresses[1].addr or hostname
+end
+-- services on the host (ollama, godot) are unreachable via loopback from a non-host-networked container
+local host_addr = resolve_ipv4(os.getenv("NVIM_HOST_ADDR") or "127.0.0.1")
+
 local function ping_ollama(host, port, timeout_ms)
-	host = host or "127.0.0.1"
+	host = host or host_addr
 	port = port or 11434
 	timeout_ms = timeout_ms or 500
 
@@ -203,7 +237,20 @@ local servers = {
 	},
 	"cssls",
 	"tailwindcss",
-	"pyright",
+	pyright = {
+		-- read the project venv's packages directly; its interpreter may not exist here (container, other OS)
+		before_init = function(_, config)
+			local site_packages = vim.fn.glob(config.root_dir .. "/.venv/lib/python3*/site-packages", true, true)
+			if #site_packages == 0 then
+				return
+			end
+			-- mutate in place: the client already holds a reference to config.settings
+			local python = config.settings.python or {}
+			config.settings.python = python
+			python.analysis = python.analysis or {}
+			python.analysis.extraPaths = site_packages
+		end,
+	},
 	intelephense = {
 		before_init = function(_, config)
 			config.settings.intelephense.environment = { phpVersion = detect_php_version() }
@@ -274,7 +321,9 @@ local tools = {
 	"tree-sitter-cli",
 }
 local ensure_installed = vim.iter({ vim.tbl_keys(servers), tools }):flatten():totable()
-servers["gdscript"] = {}
+servers["gdscript"] = {
+	cmd = vim.lsp.rpc.connect(host_addr, tonumber(os.getenv("GDScript_Port") or "6005")),
+}
 
 local function config_telescope()
 	local telescope = require("telescope")
@@ -526,7 +575,7 @@ require("lazy").setup({
 				openai_fim_compatible = {
 					api_key = "TERM",
 					name = "Ollama",
-					end_point = "http://localhost:11434/v1/completions",
+					end_point = "http://" .. host_addr .. ":11434/v1/completions",
 					model = model,
 					optional = {
 						max_tokens = 56,
