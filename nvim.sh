@@ -10,8 +10,14 @@
 #
 # Mounts (at identical paths): $HOME, plus for each path argument / $PWD outside $HOME
 # its project dir: enclosing git repo, else the directory itself / the file's directory
-# (init.lua cds by the same rule). Files under container system paths are mounted individually.
-# Bash 3.2 compatible (macOS).
+# (init.lua cds by the same rule). Files under container system paths are mounted individually;
+# other system paths are refused.
+#
+# Root files: the container can't write host files as root (macOS VM file sharing runs as the
+# user), so root-owned files we can't write are never opened in it. nvim.sh only prints a
+# `sudo --edit` command using the host's plain vim; it never runs sudo itself, and never runs as
+# root. Anything it isn't sure about (flags, mixed args, symlinks, directories) is refused.
+# Tests: test/guards.sh. Bash 3.2 compatible (macOS).
 set -o errexit -o nounset -o pipefail
 
 CONFIG_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd)"
@@ -32,6 +38,13 @@ RUNTIME_FILES=(/etc/group /etc/hostname /etc/hosts /etc/passwd /etc/resolv.conf 
 warn() {
 	echo "nvim.sh: $*" >&2
 }
+
+fail() {
+	warn "$@"
+	exit 1
+}
+
+[[ "$(id -u)" != 0 ]] || fail "refusing to run as root; run without sudo (root-owned files get a sudo --edit command)"
 
 detect_runtime() {
 	if [[ -n "${NVIM_CONTAINER_RUNTIME:-}" ]]; then
@@ -227,7 +240,7 @@ mount_sources() {
 	elif [[ -f "$path" ]] && ! is_runtime_file "$path"; then
 		echo "$path"
 	else
-		warn "not mounting system path $path; nvim will see the container's copy"
+		fail "not mounting system path $path; the container would show its own copy"
 	fi
 }
 
@@ -263,14 +276,70 @@ add_mount() {
 	MOUNTS+=("$source")
 }
 
+# command substitution (not process substitution) so mount_sources' fail aborts the script
 collect_mounts() {
-	local path source
+	local path sources source
 	while IFS= read -r path; do
 		[[ -n "$path" ]] || continue
+		sources="$(mount_sources "$path")"
 		while IFS= read -r source; do
+			[[ -n "$source" ]] || continue
 			add_mount "$source"
-		done < <(mount_sources "$path")
+		done <<<"$sources"
 	done < <(echo "$PWD"; nvim_path_args "$@")
+}
+
+##############
+# ROOT FILES #
+##############
+
+# -H: a symlinked parent dir (macOS /etc) is judged by its target
+is_root_owned() {
+	[[ -n "$(find -H "$1" -maxdepth 0 -user 0 2>/dev/null)" ]]
+}
+
+# prints how $1 can be opened: container | sudo-edit | unsupported
+access_mode() {
+	local path="$1" parent
+	parent="$(dirname "$path")"
+	if [[ -w "$path" ]]; then
+		echo container
+	elif [[ -L "$path" ]]; then
+		echo unsupported
+	elif [[ -e "$path" ]]; then
+		if ! is_root_owned "$path"; then
+			echo container
+		elif [[ -f "$path" ]]; then
+			echo sudo-edit
+		else
+			echo unsupported
+		fi
+	elif [[ -d "$parent" && ! -w "$parent" ]] && is_root_owned "$parent"; then
+		echo sudo-edit
+	else
+		echo container
+	fi
+}
+
+# exits with a printed `sudo --edit` command when the args are root files; refuses anything ambiguous
+reject_root_paths() {
+	local path sudo_edit_paths=()
+	while IFS= read -r path; do
+		case "$(access_mode "$path")" in
+			container) ;;
+			sudo-edit) sudo_edit_paths+=("$path") ;;
+			unsupported) fail "$path is a root-owned non-regular file or an unwritable symlink; nvim.sh can't safely edit it" ;;
+		esac
+	done < <(nvim_path_args "$@")
+	((${#sudo_edit_paths[@]} > 0)) || return 0
+	((${#sudo_edit_paths[@]} == $#)) || fail "root-owned files must be the only arguments (no flags, --, or other files)"
+	command -v vim >/dev/null || fail "root-owned files are edited with the host's vim, which isn't installed"
+	command -v sudo >/dev/null || fail "root-owned files are edited with sudo --edit, which isn't installed"
+	warn "root-owned files can't be edited in the container; edit them on the host with:"
+	printf "SUDO_EDITOR='vim --clean' sudo --edit --"
+	printf ' %q' "${sudo_edit_paths[@]}"
+	echo
+	exit 1
 }
 
 #######
@@ -396,6 +465,7 @@ case "${1:-}" in
 	clean) clean ;;
 	install) install_link ;;
 	*)
+		reject_root_paths "$@"
 		collect_mounts "$@"
 		run_container nvim "$@"
 		;;
