@@ -359,7 +359,6 @@ local function config_telescope()
 		"rg",
 		"--files",
 		"--hidden",
-		"--no-ignore",
 		"--glob=!**/.git/*",
 		"--glob=!**/node_modules/*",
 		"--glob=!**/vendor/*",
